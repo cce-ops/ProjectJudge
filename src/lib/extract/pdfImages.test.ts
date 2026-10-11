@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { OPS } from 'pdfjs-dist';
-import { extractPdf, pdfImageToRgba } from './pdf';
+import { extractPdf, pdfImageToRgba, groupTextItemsIntoLines, findCaptionPages } from './pdf';
 
 function pageDouble(options: {
   lines?: string[];
@@ -66,6 +66,59 @@ describe('pdfImageToRgba', () => {
   });
 });
 
+describe('groupTextItemsIntoLines', () => {
+  it('agrupa por coordenada Y y ordena por X', () => {
+    const lines = groupTextItemsIntoLines([
+      { str: 'mundo', transform: [1, 0, 0, 1, 50, 100], width: 30 },
+      { str: 'Hola', transform: [1, 0, 0, 1, 10, 100], width: 20 },
+      { str: 'Título', transform: [1, 0, 0, 1, 10, 200], width: 30 },
+    ]);
+    expect(lines).toEqual(['Título', 'Hola mundo']);
+  });
+
+  it('une sin espacio los fragmentos de palabra con hueco minimo', () => {
+    const lines = groupTextItemsIntoLines([
+      { str: 'renovabl', transform: [1, 0, 0, 1, 0, 100], width: 40 },
+      { str: 'e', transform: [1, 0, 0, 1, 40.2, 100], width: 5 },
+    ]);
+    expect(lines).toEqual(['renovable']);
+  });
+
+  it('tolera pequeñas diferencias de Y en la misma linea', () => {
+    const lines = groupTextItemsIntoLines([
+      { str: 'A', transform: [1, 0, 0, 1, 0, 100], width: 8 },
+      { str: 'B', transform: [1, 0, 0, 1, 20, 101.5], width: 8 },
+    ]);
+    expect(lines).toEqual(['A B']);
+  });
+
+  it('une con espacio cuando no hay metricas', () => {
+    expect(groupTextItemsIntoLines([{ str: 'Antecedentes' }, { str: 'Texto.' }])).toEqual([
+      'Antecedentes Texto.',
+    ]);
+  });
+});
+
+describe('findCaptionPages', () => {
+  it('localiza las paginas con los pies citados', () => {
+    const pages = [
+      { pageNumber: 1, lines: ['Introducción general.'] },
+      { pageNumber: 2, lines: ['Figura 7: Evolución horaria.'] },
+      { pageNumber: 5, lines: ['Figura 9: Payback.'] },
+    ];
+    expect(findCaptionPages(pages, [7, 9])).toEqual([2, 5]);
+    expect(findCaptionPages(pages, [3])).toEqual([]);
+  });
+
+  it('prioriza la pagina del pie sobre la que solo menciona', () => {
+    const pages = [
+      { pageNumber: 1, lines: ['Ver Figura 7 en el análisis.'] },
+      { pageNumber: 2, lines: ['Figura 7: Evolución horaria.'] },
+    ];
+    expect(findCaptionPages(pages, [7])).toEqual([2, 1]);
+  });
+});
+
 describe('extractPdf con imagenes', () => {
   const renderDouble = vi.fn().mockImplementation(async (image: { width: number; height: number }) => ({
     base64: `img-${image.width}x${image.height}`,
@@ -115,5 +168,68 @@ describe('extractPdf con imagenes', () => {
     const result = await extractPdf(file, { getDocument, renderImage: renderDouble });
     expect(result.stats.figuresUsed).toBe(0);
     expect(result.sections.length).toBeGreaterThan(0);
+  });
+
+  it('renderiza las paginas con figuras citadas cuando no hay imagenes', async () => {
+    const file = { name: 'informe.pdf', arrayBuffer: async () => new ArrayBuffer(8) } as unknown as File;
+    const renderPage = vi.fn().mockImplementation(async () => ({
+      base64: 'pagina-renderizada',
+      width: 900,
+      height: 1200,
+      bytes: 120000,
+    }));
+    const getDocument = vi.fn().mockResolvedValue(
+      docDouble([
+        pageDouble({ lines: ['1. Resultados', 'Ver Figura 7 en el análisis.'] }),
+        pageDouble({ lines: ['Figura 7: Evolución horaria del sistema.'] }),
+      ])
+    );
+    const result = await extractPdf(file, { getDocument, renderImage: renderDouble, renderPage });
+    expect(renderPage).toHaveBeenCalledTimes(1);
+    expect(result.stats.figuresUsed).toBe(1);
+    const withFigure = result.sections.find((s) => s.figureIds.length > 0);
+    expect(withFigure).toBeDefined();
+    expect(result.figures[0].id).toBe('fig-page-2');
+  });
+
+  it('no renderiza si ya hay imagenes cosechadas', async () => {
+    const file = { name: 'informe.pdf', arrayBuffer: async () => new ArrayBuffer(8) } as unknown as File;
+    const renderPage = vi.fn();
+    const getDocument = vi.fn().mockResolvedValue(
+      docDouble([
+        pageDouble({
+          lines: ['1. Resultados', 'Ver Figura 7.'],
+          images: [{ name: 'img1', ...rgbaImage(400, 300) }],
+        }),
+      ])
+    );
+    await extractPdf(file, { getDocument, renderImage: renderDouble, renderPage });
+    expect(renderPage).not.toHaveBeenCalled();
+  });
+
+  it('respeta el tope de paginas renderizadas y avisa', async () => {
+    const file = { name: 'informe.pdf', arrayBuffer: async () => new ArrayBuffer(8) } as unknown as File;
+    const renderPage = vi.fn().mockImplementation(async () => ({
+      base64: 'pagina',
+      width: 900,
+      height: 1200,
+      bytes: 120000,
+    }));
+    const getDocument = vi.fn().mockResolvedValue(
+      docDouble([
+        pageDouble({ lines: ['1. A', 'Ver Figura 1.'] }),
+        pageDouble({ lines: ['Figura 1: primera.'] }),
+        pageDouble({ lines: ['2. B', 'Ver Figura 2.'] }),
+        pageDouble({ lines: ['Figura 2: segunda.'] }),
+      ])
+    );
+    const result = await extractPdf(file, {
+      getDocument,
+      renderImage: renderDouble,
+      renderPage,
+      maxRenderedPages: 1,
+    });
+    expect(renderPage).toHaveBeenCalledTimes(1);
+    expect(result.warnings.some((w) => w.includes('no se pudo visualizar'))).toBe(true);
   });
 });

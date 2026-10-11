@@ -1,5 +1,12 @@
 import type { ReportView } from '../types/evaluation';
-import { displayTitle, verdictsForCriterion, formatFigureNote, nonEvaluableLine } from '../lib/report/buildReport';
+import {
+  displayTitle,
+  verdictsForCriterion,
+  formatFigureNote,
+  nonEvaluableLine,
+  partitionVerdicts,
+  emptyVerdictsLine,
+} from '../lib/report/buildReport';
 import { formatGroupWeight } from '../lib/rubric/weights';
 
 interface ResultsPanelProps {
@@ -88,13 +95,19 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
         <div className="mt-3">
           <h5 className="font-bold">Estructura detectada</h5>
           <ul className="list-disc pl-5 text-sm">
-            {view.sections.map((s) => (
-              <li key={s.sectionId}>
-                {displayTitle(view, s)}
-                {!s.evaluated && <span className="text-gray-500"> (no evaluado)</span>}
-              </li>
-            ))}
+            {view.sections
+              .filter((s) => s.evaluated)
+              .map((s) => (
+                <li key={s.sectionId}>{displayTitle(view, s)}</li>
+              ))}
           </ul>
+          {view.sections.some((s) => !s.evaluated) && (
+            <p className="mt-1 text-sm text-gray-500">
+              … y {view.sections.filter((s) => !s.evaluated).length}{' '}
+              {view.sections.filter((s) => !s.evaluated).length === 1 ? 'apartado más' : 'apartados más'} sin
+              evaluar.
+            </p>
+          )}
         </div>
       </section>
 
@@ -102,9 +115,7 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
         <h4 className="mb-3 text-sm font-bold uppercase tracking-wider">Criterios de evaluación</h4>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {view.rubric.criteria.map((c) => {
-            const verdicts = verdictsForCriterion(view, c);
-            const evaluated = verdicts.filter((v) => v.result.evaluable);
-            const nonEvaluated = verdicts.filter((v) => !v.result.evaluable);
+            const { substantive, empty, nonEvaluable } = partitionVerdicts(verdictsForCriterion(view, c));
             return (
               <div key={c.id} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-950">
                 <div className="flex items-center justify-between">
@@ -114,28 +125,38 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
                       <span className="font-normal text-gray-500"> ({formatGroupWeight(c)})</span>
                     )}
                   </span>
-                  {evaluated.length > 0 && (
+                  {substantive.length > 0 && (
                     <span className="text-xs font-extrabold text-blue-700">
-                      {evaluated.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · ')}
+                      {substantive.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · ')}
                     </span>
                   )}
                 </div>
-                {verdicts.length === 0 && (
+                {substantive.length === 0 && nonEvaluable.length === 0 && empty.length === 0 && (
                   <p className="mt-1 text-xs text-gray-500">Sin evidencias en el documento evaluado.</p>
                 )}
-                {verdicts.length > 0 && evaluated.length === 0 && (
+                {substantive.length === 0 && nonEvaluable.length > 0 && (
                   <p className="mt-1 text-xs text-gray-500">
-                    No evaluable en este documento: {nonEvaluated[0].result.motivo || 'sin motivo indicado'}.
+                    No evaluable en este documento: {nonEvaluable[0].result.motivo || 'sin motivo indicado'}.
                   </p>
                 )}
-                {evaluated.map((v, i) => (
+                {substantive.length === 0 && nonEvaluable.length === 0 && empty.length > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">Sin contenido valorable en este criterio.</p>
+                )}
+                {substantive.map((v, i) => (
                   <p key={i} className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                     <span className="font-medium">[{v.sectionTitle}]</span> {v.result.feedback} Evidencia:{' '}
                     {v.result.evidence}
                   </p>
                 ))}
-                {evaluated.length > 0 && nonEvaluated.length > 0 && (
-                  <p className="mt-1 text-xs text-gray-500">{nonEvaluableLine(nonEvaluated.length)}</p>
+                {substantive.length > 0 && nonEvaluable.length > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {nonEvaluableLine(nonEvaluable.map((v) => v.sectionTitle))}
+                  </p>
+                )}
+                {substantive.length > 0 && empty.length > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {emptyVerdictsLine(empty.map((v) => v.sectionTitle))}
+                  </p>
                 )}
               </div>
             );

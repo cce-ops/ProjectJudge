@@ -35,6 +35,11 @@ export function mergeTinySections(sections: Section[], minChars = 300): Section[
     const figureIds = section.figureIds ?? [];
     const title = section.title ?? '';
     const text = section.text ?? '';
+    // Restos sin título ni contenido (números de página, cabeceras sueltas):
+    // se descartan para no ensuciar el texto vecino ni la estructura.
+    if (!title.trim() && text.trim().length < 10) {
+      continue;
+    }
     const last = kept[kept.length - 1];
     // Solo se absorben los fragmentos diminutos SIN título propio (líneas sueltas,
     // rótulos, restos de paginación). Las secciones con título se conservan siempre

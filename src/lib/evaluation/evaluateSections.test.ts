@@ -321,6 +321,16 @@ describe('evaluateSections', () => {
     expect(mergeTinySections(sections)).toHaveLength(2);
   });
 
+  it('descarta los restos sin titulo ni contenido', () => {
+    const sections = [
+      { id: 'a', title: 'Grande', level: 1, text: longText('a'), figureIds: [] as string[] },
+      { id: 'b', title: '', level: 0, text: '9', figureIds: [] as string[] },
+    ];
+    const merged = mergeTinySections(sections);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].text).not.toContain('9');
+  });
+
   it('normaliza al identificador canonico cuando la IA devuelve el nombre', async () => {
     const mockClient = {
       generateJson: vi.fn().mockResolvedValue({

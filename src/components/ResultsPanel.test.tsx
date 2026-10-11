@@ -148,6 +148,35 @@ describe('ResultsPanel', () => {
     expect(screen.getAllByText(/Anexo sin evaluar/).length).toBeGreaterThan(0);
   });
 
+  it('la ficha colapsa los apartados sin evaluar', () => {
+    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+    expect(screen.getByText(/… y 1 apartado más sin evaluar\./)).toBeInTheDocument();
+  });
+
+  it('colapsa los veredictos vacios con sus apartados', () => {
+    const view = sampleView();
+    view.sections[0].criteria.push(
+      {
+        criterionId: 'c1',
+        score: 0,
+        maxScore: 10,
+        evidence: '',
+        feedback: '',
+        evaluable: true,
+      },
+      {
+        criterionId: 'c1',
+        score: 0,
+        maxScore: 10,
+        evidence: '',
+        feedback: '',
+        evaluable: true,
+      }
+    );
+    render(<ResultsPanel view={view} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+    expect(screen.getByText(/Sin contenido valorable en otro apartado \(Objetivos del estudio\)/)).toBeInTheDocument();
+  });
+
   it('atribuye cada veredicto a su apartado', () => {
     render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByText(/\[Objetivos del estudio\]/)).toBeInTheDocument();

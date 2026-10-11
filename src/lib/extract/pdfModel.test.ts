@@ -65,4 +65,14 @@ describe('looksLikeHeading', () => {
   it('rejects normal text', () => {
     expect(looksLikeHeading('Este es un párrafo normal.', [])).toBe(false);
   });
+
+  it('rechaza numeros de pagina y años sueltos', () => {
+    expect(looksLikeHeading('13', [])).toBe(false);
+    expect(looksLikeHeading('2025', [])).toBe(false);
+    expect(looksLikeHeading('9', [])).toBe(false);
+  });
+
+  it('rechaza años seguidos de corchete de cita', () => {
+    expect(looksLikeHeading('2025 [En línea]', [])).toBe(false);
+  });
 });

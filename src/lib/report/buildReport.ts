@@ -36,33 +36,87 @@ export function verdictsForCriterion(
 }
 
 /** Una línea colapsada por los veredictos no evaluables de un criterio. */
-export function nonEvaluableLine(count: number): string {
-  return count === 1
-    ? 'No evaluable en otro apartado.'
-    : `No evaluable en otros ${count} apartados.`;
+export function nonEvaluableLine(titles: string[]): string {
+  const unique = [...new Set(titles)];
+  return unique.length === 1 ? 'No evaluable en otro apartado.' : `No evaluable en otros ${unique.length} apartados.`;
 }
 
-/** Evita el "Figura Figura 2:" cuando la nota ya empieza por "Figura N:". */
-export function formatFigureNote(figureId: string, note: string): string {
-  if (/^figura\s+\S+:/i.test(note.trim())) {
-    return note.trim();
+export interface PartitionedVerdicts {
+  substantive: CriterionVerdict[];
+  empty: CriterionVerdict[];
+  nonEvaluable: CriterionVerdict[];
+}
+
+function hasContent(verdict: CriterionVerdict): boolean {
+  return verdict.result.feedback.trim().length > 0 || verdict.result.evidence.trim().length > 0;
+}
+
+/** Separa los veredictos evaluables con contenido de los vacíos y los no evaluables. */
+export function partitionVerdicts(verdicts: CriterionVerdict[]): PartitionedVerdicts {
+  const substantive: CriterionVerdict[] = [];
+  const empty: CriterionVerdict[] = [];
+  const nonEvaluable: CriterionVerdict[] = [];
+  for (const verdict of verdicts) {
+    if (!verdict.result.evaluable) {
+      nonEvaluable.push(verdict);
+    } else if (hasContent(verdict)) {
+      substantive.push(verdict);
+    } else {
+      empty.push(verdict);
+    }
   }
-  return `Figura ${figureId}: ${note}`;
+  return { substantive, empty, nonEvaluable };
+}
+
+/** Línea colapsada para los veredictos sin contenido, con sus apartados distintos. */
+export function emptyVerdictsLine(titles: string[]): string {
+  const unique = [...new Set(titles)];
+  const scope = unique.length > 0 ? ` (${unique.join(', ')})` : '';
+  return unique.length === 1
+    ? `Sin contenido valorable en otro apartado${scope}.`
+    : `Sin contenido valorable en otros ${unique.length} apartados${scope}.`;
+}
+
+/**
+ * Normaliza la nota de una figura para mostrarla: colapsa tartamudeos del modelo
+ * ("Figura Figura 1" → "Figura 1"), respeta las notas que ya empiezan por
+ * "Figura N:" o "Tabla N:" y nombra por página los renders ("fig-page-7").
+ */
+export function formatFigureNote(figureId: string, note: string): string {
+  const cleaned = note
+    .trim()
+    .replace(/^(?:Figura\s+)+/i, 'Figura ')
+    .replace(/^Figura\s+(Tabla\s+\d+\s*:)/i, '$1');
+  if (/^figura\s+\S+:/i.test(cleaned) || /^tabla\s+\d+\s*:/i.test(cleaned)) {
+    return cleaned;
+  }
+  const page = /^fig-page-(\d+)$/.exec(figureId);
+  if (page) {
+    return `Figura (pág. ${page[1]}): ${note.trim()}`;
+  }
+  return `Figura ${figureId}: ${note.trim()}`;
 }
 
 export function buildReportBlocks(view: ReportView): ReportBlock[] {
   const blocks: ReportBlock[] = [];
-  const evaluatedSections = view.sections.filter((s) => s.evaluated);
 
+  const evaluatedTitles = view.sections.filter((s) => s.evaluated).map((s) => displayTitle(view, s));
+  const pendingCount = view.sections.length - evaluatedTitles.length;
+  const pendingSuffix =
+    pendingCount === 1
+      ? ' … y 1 apartado más sin evaluar.'
+      : pendingCount > 1
+        ? ` … y ${pendingCount} apartados más sin evaluar.`
+        : '';
   blocks.push({
     heading: `Informe: ${view.document.fileName} — ${view.synthesis.overallAssessment}`,
     paragraphs: [
       `Valoración global: ${view.synthesis.overallAssessment}.`,
       view.synthesis.summary,
       `Rúbrica: ${view.rubric.source}. Evaluado con ${view.model} el ${view.createdAt}.`,
-      `Documento: ${view.document.format}, ${view.document.stats.words} palabras, ${view.document.stats.figuresUsed} figuras usadas en ${evaluatedSections.length} apartados evaluados.`,
+      `Documento: ${view.document.format}, ${view.document.stats.words} palabras, ${view.document.stats.figuresUsed} figuras usadas en ${evaluatedTitles.length} apartados evaluados.`,
       `De qué trata: ${view.synthesis.about}`,
-      `Estructura detectada: ${view.sections.map((s) => displayTitle(view, s)).join(' · ')}`,
+      `Estructura detectada: ${evaluatedTitles.join(' · ')}${pendingSuffix}`,
       `Mapa: ${view.map.summary}`,
     ],
   });
@@ -72,23 +126,28 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
     paragraphs: view.rubric.criteria.flatMap((c) => {
       const weightSuffix = formatGroupWeight(c) ? ` [${formatGroupWeight(c)}]` : '';
       const lines = [`${c.name} (máximo ${c.maxScore})${weightSuffix}: ${c.description}`];
-      const verdicts = verdictsForCriterion(view, c);
-      const evaluated = verdicts.filter((v) => v.result.evaluable);
-      const nonEvaluated = verdicts.filter((v) => !v.result.evaluable);
-      if (verdicts.length === 0) {
+      const { substantive, empty, nonEvaluable } = partitionVerdicts(verdictsForCriterion(view, c));
+      if (substantive.length === 0 && nonEvaluable.length === 0 && empty.length === 0) {
         lines.push('Sin evidencias en el documento evaluado.');
         return lines;
       }
-      if (evaluated.length === 0) {
-        lines.push(`No evaluable en este documento: ${nonEvaluated[0].result.motivo || 'sin motivo indicado'}.`);
+      if (substantive.length === 0 && nonEvaluable.length > 0) {
+        lines.push(`No evaluable en este documento: ${nonEvaluable[0].result.motivo || 'sin motivo indicado'}.`);
         return lines;
       }
-      lines.push(evaluated.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · '));
-      for (const v of evaluated) {
+      if (substantive.length === 0) {
+        lines.push('Sin contenido valorable en este criterio.');
+        return lines;
+      }
+      lines.push(substantive.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · '));
+      for (const v of substantive) {
         lines.push(`[${v.sectionTitle}]: ${v.result.feedback} Evidencia: ${v.result.evidence}`);
       }
-      if (nonEvaluated.length > 0) {
-        lines.push(nonEvaluableLine(nonEvaluated.length));
+      if (nonEvaluable.length > 0) {
+        lines.push(nonEvaluableLine(nonEvaluable.map((v) => v.sectionTitle)));
+      }
+      if (empty.length > 0) {
+        lines.push(emptyVerdictsLine(empty.map((v) => v.sectionTitle)));
       }
       return lines;
     }),

@@ -9,10 +9,12 @@ export interface PdfPageDump {
 export function looksLikeHeading(line: string, keywords: string[]): boolean {
   const trimmed = line.trim();
   if (trimmed.length === 0 || trimmed.length > 90) return false;
-  // Numerical heading
-  if (/^\d+(\.\d+)*[.)]?\s+\S+/.test(trimmed)) return true;
-  // All uppercase heading
-  if (trimmed === trimmed.toUpperCase() && trimmed.length < 60) return true;
+  // Encabezado numérico ("3.1 Consumos"). Un año seguido de corchete ("2025 [En línea]")
+  // es un fragmento de cita bibliográfica, no un apartado.
+  if (/^\d+(\.\d+)*[.)]?\s+\S/.test(trimmed) && !/^\d{4}\s*\[/.test(trimmed)) return true;
+  // Encabezado en mayúsculas ("METODOLOGÍA"). Exige al menos una letra para no
+  // tragarse números de página o años sueltos ("13", "2025").
+  if (trimmed === trimmed.toUpperCase() && trimmed.length < 60 && /[A-ZÁÉÍÓÚÜÑ]/.test(trimmed)) return true;
   // Keyword match
   const lowerLine = trimmed.toLowerCase();
   for (const kw of keywords) {

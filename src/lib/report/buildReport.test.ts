@@ -127,9 +127,15 @@ describe('buildReportBlocks', () => {
     expect(formatFigureNote('fig-0', 'Muestra la demanda.')).toBe('Figura fig-0: Muestra la demanda.');
   });
 
-  it('nonEvaluableLine usa singular y plural', () => {
-    expect(nonEvaluableLine(1)).toBe('No evaluable en otro apartado.');
-    expect(nonEvaluableLine(16)).toBe('No evaluable en otros 16 apartados.');
+  it('formatFigureNote sanea tartamudeos y tablas', () => {
+    expect(formatFigureNote('fig-0', 'Figura Figura 1: localización.')).toBe('Figura 1: localización.');
+    expect(formatFigureNote('fig-0', 'Figura Tabla 2: características.')).toBe('Tabla 2: características.');
+    expect(formatFigureNote('fig-page-7', 'Se ve el estado de carga.')).toBe('Figura (pág. 7): Se ve el estado de carga.');
+  });
+
+  it('nonEvaluableLine usa singular y plural por apartados distintos', () => {
+    expect(nonEvaluableLine(['Portada'])).toBe('No evaluable en otro apartado.');
+    expect(nonEvaluableLine(['A', 'B', 'A'])).toBe('No evaluable en otros 2 apartados.');
   });
 
   it('colapsa los veredictos no evaluables en una sola linea por criterio', () => {
@@ -157,7 +163,7 @@ describe('buildReportBlocks', () => {
     const body = buildReportBlocks(view)
       .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
       .join('\n');
-    expect(body).toContain('No evaluable en otros 2 apartados.');
+    expect(body).toContain('No evaluable en otro apartado.');
     expect(body.match(/No evaluable en este documento/g)?.length ?? 0).toBeLessThanOrEqual(1);
   });
 
@@ -204,5 +210,40 @@ describe('buildReportBlocks', () => {
       .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
       .join('\n');
     expect(body).toContain('[Cálculos · 30%]');
+  });
+
+  it('colapsa los veredictos vacios con sus apartados', () => {
+    const view = sampleView();
+    view.sections[0].criteria.push(
+      {
+        criterionId: 'c1',
+        score: 0,
+        maxScore: 10,
+        evidence: '',
+        feedback: '',
+        evaluable: true,
+      },
+      {
+        criterionId: 'c1',
+        score: 0,
+        maxScore: 10,
+        evidence: '',
+        feedback: '',
+        evaluable: true,
+      }
+    );
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('Sin contenido valorable en otro apartado (Objetivos del estudio).');
+  });
+
+  it('la ficha lista los evaluados y colapsa el resto', () => {
+    const view = sampleView();
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('Objetivos del estudio');
+    expect(body).toContain('… y 1 apartado más sin evaluar.');
   });
 });

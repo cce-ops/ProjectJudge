@@ -68,7 +68,9 @@ siguiente modelo y recuerda cuál funciona. Cada petición tiene además un lím
 ## Limitaciones conocidas
 
 - Los PDF escaneados (sin capa de texto) no tienen OCR: se avisa y no se evalúan.
-- Las figuras embebidas de los PDF se envían a la IA (máximo 3 por apartado, en JPEG); las de
-  los DOCX aún no se enlazan con sus apartados.
+- Las figuras embebidas de los PDF se envían a la IA (máximo 3 por apartado, en JPEG). Si una
+  sección cita figuras sin imagen extraíble (p. ej. gráficos vectoriales), se renderizan como
+  imagen las páginas con sus pies de figura (máximo 6 por documento).
+- Las figuras de los DOCX aún no se enlazan con sus apartados.
 - Se evalúan como máximo 20 secciones por informe y 2 informes de referencia.
 - La herramienta no calcula nota global por diseño.

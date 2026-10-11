@@ -1,4 +1,5 @@
 import type { DocumentCheck } from '../../types/evaluation';
+import { findFigureCitations } from '../text';
 
 function citedNumbers(text: string, pattern: RegExp): number[] {
   const found = new Set<number>();
@@ -29,7 +30,7 @@ function missingInSequence(cited: number[]): number[] {
 export function buildChecks(text: string, figuresDetected: number): DocumentCheck[] {
   const checks: DocumentCheck[] = [];
 
-  const figures = citedNumbers(text, /(?:Figura|Fig\.)\s*(\d+)/gi);
+  const figures = findFigureCitations(text);
   if (figures.length > 0) {
     checks.push({
       id: 'figuras-citadas',
