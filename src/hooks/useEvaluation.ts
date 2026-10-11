@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { Dispatch } from 'react';
 import type { Settings } from '../types/app';
 import type { RubricModel } from '../types/rubric';
@@ -6,6 +6,8 @@ import type { ReportView } from '../types/evaluation';
 import type { AppAction } from '../state/appMachine';
 import type { JsonClient } from '../lib/ai/gemini';
 import { createGeminiClientFromKey } from '../lib/ai/geminiClient';
+import { createFallbackJsonClient } from '../lib/ai/fallback';
+import { AVAILABLE_MODELS } from '../lib/ai/models';
 import { createConcurrencyLimiter } from '../lib/ai/limiter';
 import { parseRubric } from '../lib/rubric/parseRubric';
 import { extractDocument } from '../lib/extract/extractDocument';
@@ -23,13 +25,17 @@ export function useEvaluation({ dispatch, settings, clientFactory }: UseEvaluati
   const rubricCacheRef = useRef(new Map<string, RubricModel>());
   const factory = clientFactory ?? createGeminiClientFromKey;
 
+  const client = useMemo(() => {
+    const chain = [settings.model, ...AVAILABLE_MODELS.filter((m) => m !== settings.model)];
+    return createFallbackJsonClient(chain.map((model) => factory(settings.apiKey, model)));
+  }, [settings.apiKey, settings.model, factory]);
+
   const parseRubricText = async (text: string): Promise<RubricModel | null> => {
     if (!settings.apiKey) {
       dispatch({ type: 'rubric/failed', error: 'Introduce tu API key de Gemini en la barra lateral.' });
       return null;
     }
     try {
-      const client = factory(settings.apiKey, settings.model);
       const rubric = await parseRubric(text, client, rubricCacheRef.current);
       dispatch({ type: 'rubric/parsed', rubric });
       return rubric;
@@ -59,7 +65,6 @@ export function useEvaluation({ dispatch, settings, clientFactory }: UseEvaluati
         return;
       }
       dispatch({ type: 'documents/extracted', document });
-      const client = factory(settings.apiKey, settings.model);
       const limiter = createConcurrencyLimiter(2);
       const report = await orchestrate({
         document,
@@ -98,7 +103,6 @@ export function useEvaluation({ dispatch, settings, clientFactory }: UseEvaluati
       return;
     }
     try {
-      const client = factory(settings.apiKey, settings.model);
       const synthesis = await synthesize(
         { map: report.map, sections: report.sections, rubric: report.rubric, referenceLabels },
         client

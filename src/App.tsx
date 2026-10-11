@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ErrorNotice } from './components/ErrorNotice';
 import { RubricPanel } from './components/RubricPanel';
@@ -9,6 +9,8 @@ import { useSettings } from './hooks/useSettings';
 import { useEvaluation } from './hooks/useEvaluation';
 import { appReducer, initialState } from './state/appMachine';
 import { createGeminiClientFromKey } from './lib/ai/geminiClient';
+import { createFallbackJsonClient } from './lib/ai/fallback';
+import { AVAILABLE_MODELS } from './lib/ai/models';
 import { extractDocument } from './lib/extract/extractDocument';
 import { toDocx } from './lib/report/toDocx';
 import { estimateEvaluation, type ReferenceSummary } from './lib/evaluation/orchestrate';
@@ -18,6 +20,7 @@ export default function App() {
   const [state, dispatch] = useReducer(appReducer, undefined, () => initialState(settings));
   const { submitDocuments, cancel } = useEvaluation({ dispatch, settings });
   const lastFileRef = useRef<File | null>(null);
+  const [rubricDraft, setRubricDraft] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     dispatch({ type: 'settings/updated', settings });
@@ -27,10 +30,11 @@ export default function App() {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
 
-  const client = useMemo(
-    () => (settings.apiKey ? createGeminiClientFromKey(settings.apiKey, settings.model) : null),
-    [settings.apiKey, settings.model]
-  );
+  const client = useMemo(() => {
+    if (!settings.apiKey) return null;
+    const chain = [settings.model, ...AVAILABLE_MODELS.filter((m) => m !== settings.model)];
+    return createFallbackJsonClient(chain.map((model) => createGeminiClientFromKey(settings.apiKey, model)));
+  }, [settings.apiKey, settings.model]);
 
   const summary = state.document
     ? {
@@ -88,6 +92,7 @@ export default function App() {
         onThemeToggle={() => setSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' })}
         rubricName={state.rubric ? state.rubric.source : null}
         referenceCount={state.references.length}
+        onRubricDraft={setRubricDraft}
       />
 
       <main className="flex-1 overflow-auto p-6 md:p-10">
@@ -98,7 +103,7 @@ export default function App() {
           </div>
 
           {!settings.apiKey && (
-            <p className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm">
+            <p className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
               Falta la API key de Gemini en la barra lateral.
             </p>
           )}
@@ -107,7 +112,16 @@ export default function App() {
             <ErrorNotice message={state.error} onDismiss={() => dispatch({ type: 'error/dismissed' })} />
           )}
 
-          {state.step === 'rubric' && <RubricPanel client={client} onConfirmed={(rubric) => dispatch({ type: 'rubric/parsed', rubric })} />}
+          {state.step === 'rubric' && (
+            <RubricPanel
+              client={client}
+              initialText={rubricDraft}
+              onConfirmed={(rubric) => {
+                setRubricDraft(undefined);
+                dispatch({ type: 'rubric/parsed', rubric });
+              }}
+            />
+          )}
 
           {state.step === 'documents' && (
             <DocumentsPanel

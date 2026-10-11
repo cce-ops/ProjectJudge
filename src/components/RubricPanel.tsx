@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { JsonClient } from '../lib/ai/gemini';
 import type { RubricModel } from '../types/rubric';
 import { parseRubric } from '../lib/rubric/parseRubric';
@@ -6,13 +6,21 @@ import { parseRubric } from '../lib/rubric/parseRubric';
 interface RubricPanelProps {
   client: JsonClient | null;
   onConfirmed: (rubric: RubricModel) => void;
+  initialText?: string;
 }
 
-export function RubricPanel({ client, onConfirmed }: RubricPanelProps) {
-  const [text, setText] = useState('');
+export function RubricPanel({ client, onConfirmed, initialText }: RubricPanelProps) {
+  const [text, setText] = useState(initialText ?? '');
   const [rubric, setRubric] = useState<RubricModel | null>(null);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialText !== undefined) {
+      setText(initialText);
+      setRubric(null);
+    }
+  }, [initialText]);
 
   const handleParse = async () => {
     if (!client) return;
@@ -70,7 +78,7 @@ export function RubricPanel({ client, onConfirmed }: RubricPanelProps) {
       </div>
 
       {!client && (
-        <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+        <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           Introduce tu API key de Gemini en la barra lateral para interpretar la rúbrica.
         </p>
       )}

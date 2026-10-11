@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Settings } from '../types/app';
-
-const AVAILABLE_MODELS = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+import { AVAILABLE_MODELS } from '../lib/ai/models';
+import { readRubricFile } from '../lib/rubric/readRubricFile';
 
 interface SidebarProps {
   settings: Settings;
@@ -11,6 +11,7 @@ interface SidebarProps {
   onThemeToggle: () => void;
   rubricName: string | null;
   referenceCount: number;
+  onRubricDraft: (text: string) => void;
 }
 
 export function Sidebar({
@@ -21,8 +22,25 @@ export function Sidebar({
   onThemeToggle,
   rubricName,
   referenceCount,
+  onRubricDraft,
 }: SidebarProps) {
   const [draftKey, setDraftKey] = useState('');
+  const [pastedRubric, setPastedRubric] = useState('');
+  const [rubricStatus, setRubricStatus] = useState<string | null>(null);
+  const rubricFileRef = useRef<HTMLInputElement>(null);
+
+  const handleRubricFile = async (file: File) => {
+    setRubricStatus(null);
+    try {
+      const { text, source } = await readRubricFile(file);
+      onRubricDraft(text);
+      setRubricStatus(`${source} lista (${text.length} caracteres). Revísala en el paso 1.`);
+    } catch (e) {
+      setRubricStatus(e instanceof Error ? e.message : 'No se pudo leer el archivo.');
+    } finally {
+      if (rubricFileRef.current) rubricFileRef.current.value = '';
+    }
+  };
 
   return (
     <aside className="w-full md:w-80 border-r border-gray-800 bg-gray-900 text-gray-200">
@@ -82,6 +100,51 @@ export function Sidebar({
               </option>
             ))}
           </select>
+        </section>
+
+        <section className="space-y-2 border-t border-gray-800 pt-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Rúbrica</p>
+          <label className="block text-xs text-gray-300">
+            Adjuntar rúbrica
+            <input
+              ref={rubricFileRef}
+              type="file"
+              accept=".md,.txt,.docx,.pdf,.xlsx,.xls,.csv"
+              aria-label="Adjuntar rúbrica"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleRubricFile(file);
+              }}
+              className="mt-1 block w-full text-[11px] text-gray-400"
+            />
+          </label>
+          <label className="block space-y-1 text-xs text-gray-300" htmlFor="sidebar-rubric-paste">
+            Pegar rúbrica
+            <textarea
+              id="sidebar-rubric-paste"
+              rows={3}
+              value={pastedRubric}
+              onChange={(e) => setPastedRubric(e.target.value)}
+              placeholder="Pega los criterios aquí…"
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2 py-1.5 text-xs text-white placeholder-gray-500"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (pastedRubric.trim().length === 0) return;
+              onRubricDraft(pastedRubric);
+              setRubricStatus(`Texto listo (${pastedRubric.length} caracteres). Revísalo en el paso 1.`);
+            }}
+            className="w-full rounded-lg bg-gray-800 py-1.5 text-xs font-medium text-gray-200"
+          >
+            Usar texto pegado
+          </button>
+          {rubricStatus && (
+            <p role="status" className="text-[11px] text-gray-400">
+              {rubricStatus}
+            </p>
+          )}
         </section>
 
         <section className="space-y-1 border-t border-gray-800 pt-3 text-xs">

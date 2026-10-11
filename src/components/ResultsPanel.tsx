@@ -117,7 +117,7 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
       </section>
 
       {missing.length > 0 && (
-        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 dark:bg-amber-950/40">
+        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
           <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Apartados ausentes</h4>
           <ul className="list-disc pl-5 text-sm">
             {missing.map((m) => (

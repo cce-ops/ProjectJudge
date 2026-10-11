@@ -39,7 +39,8 @@ describe('RubricPanel', () => {
     expect(screen.getByText(/\(10 puntos\)/)).toBeInTheDocument();
   });
 
-  it('deshabilita Confirmar hasta que haya criterios', async () => {    const onConfirmed = vi.fn();
+  it('deshabilita Confirmar hasta que haya criterios', async () => {
+    const onConfirmed = vi.fn();
     render(<RubricPanel client={stubClient()} onConfirmed={onConfirmed} />);
     const confirm = screen.getByRole('button', { name: /confirmar rúbrica/i }) as HTMLButtonElement;
     expect(confirm.disabled).toBe(true);
@@ -49,5 +50,11 @@ describe('RubricPanel', () => {
     expect(confirmEnabled.disabled).toBe(false);
     fireEvent.click(confirmEnabled);
     expect(onConfirmed).toHaveBeenCalledTimes(1);
+  });
+
+  it('rellena el area con el borrador recibido', () => {
+    const { rerender } = render(<RubricPanel client={stubClient()} onConfirmed={vi.fn()} />);
+    rerender(<RubricPanel client={stubClient()} onConfirmed={vi.fn()} initialText="Borrador desde el lateral" />);
+    expect(screen.getByLabelText(/rúbrica/i)).toHaveValue('Borrador desde el lateral');
   });
 });
