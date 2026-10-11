@@ -42,6 +42,9 @@ export default function App() {
         figures: state.document.figures.length,
         words: state.document.stats.words,
         warnings: state.document.warnings,
+        titles: state.document.sections.map((s) =>
+          s.title.trim() ? `${s.title.trim()}${s.text.trim() ? '' : ' (sin contenido)'}` : '(sin título)'
+        ),
       }
     : null;
 

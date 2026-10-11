@@ -1,5 +1,5 @@
 import type { ReportView } from '../types/evaluation';
-import { displayTitle, resultsForCriterion, formatFigureNote } from '../lib/report/buildReport';
+import { displayTitle, verdictsForCriterion, formatFigureNote, nonEvaluableLine } from '../lib/report/buildReport';
 
 interface ResultsPanelProps {
   view: ReportView;
@@ -10,6 +10,7 @@ interface ResultsPanelProps {
 export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProps) {
   const missing = view.map.slots.filter((s) => !s.present);
   const evaluatedSections = view.sections.filter((s) => s.evaluated);
+  const unevaluatedSections = view.sections.filter((s) => !s.evaluated);
   const fullCoverageMiss = missing.length > 0 && missing.length >= view.map.slots.length;
 
   return (
@@ -100,30 +101,35 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
         <h4 className="mb-3 text-sm font-bold uppercase tracking-wider">Criterios de evaluación</h4>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {view.rubric.criteria.map((c) => {
-            const results = resultsForCriterion(view, c);
+            const verdicts = verdictsForCriterion(view, c);
+            const evaluated = verdicts.filter((v) => v.result.evaluable);
+            const nonEvaluated = verdicts.filter((v) => !v.result.evaluable);
             return (
               <div key={c.id} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-950">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold">{c.name}</span>
-                  {results.length > 0 && results[0].evaluable && (
+                  {evaluated.length > 0 && (
                     <span className="text-xs font-extrabold text-blue-700">
-                      {results.map((r) => `${r.score}/${r.maxScore}`).join(' · ')}
+                      {evaluated.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · ')}
                     </span>
                   )}
                 </div>
-                {results.length === 0 && (
+                {verdicts.length === 0 && (
                   <p className="mt-1 text-xs text-gray-500">Sin evidencias en el documento evaluado.</p>
                 )}
-                {results.map((r, i) =>
-                  !r.evaluable ? (
-                    <p key={i} className="mt-1 text-xs text-gray-500">
-                      No evaluable en este documento: {r.motivo || 'sin motivo indicado'}.
-                    </p>
-                  ) : (
-                    <p key={i} className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                      {r.feedback} Evidencia: {r.evidence}
-                    </p>
-                  )
+                {verdicts.length > 0 && evaluated.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    No evaluable en este documento: {nonEvaluated[0].result.motivo || 'sin motivo indicado'}.
+                  </p>
+                )}
+                {evaluated.map((v, i) => (
+                  <p key={i} className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">[{v.sectionTitle}]</span> {v.result.feedback} Evidencia:{' '}
+                    {v.result.evidence}
+                  </p>
+                ))}
+                {evaluated.length > 0 && nonEvaluated.length > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">{nonEvaluableLine(nonEvaluated.length)}</p>
                 )}
               </div>
             );
@@ -133,15 +139,13 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
 
       <section className="space-y-4">
         <h4 className="text-sm font-bold uppercase tracking-wider">Evaluación por apartados</h4>
-        {view.sections.map((s) => (
-          <article
-            key={s.sectionId}
-            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm print:break-inside-avoid dark:border-gray-800 dark:bg-gray-900"
-          >
-            <h5 className="text-sm font-bold">{displayTitle(view, s)}</h5>
-            {!s.evaluated ? (
-              <p className="mt-1 text-xs text-gray-500">No evaluada: {s.error ?? 'sin motivo indicado'}.</p>
-            ) : (
+        {view.sections.map((s) =>
+          !s.evaluated ? null : (
+            <article
+              key={s.sectionId}
+              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm print:break-inside-avoid dark:border-gray-800 dark:bg-gray-900"
+            >
+              <h5 className="text-sm font-bold">{displayTitle(view, s)}</h5>
               <div className="mt-2 space-y-2 text-xs">
                 {s.strengths.length > 0 && (
                   <div>
@@ -163,9 +167,23 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
                   </ul>
                 )}
               </div>
-            )}
-          </article>
-        ))}
+            </article>
+          )
+        )}
+        {unevaluatedSections.length > 0 && (
+          <details className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <summary className="cursor-pointer text-sm font-bold">
+              Apartados no evaluados ({unevaluatedSections.length})
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-gray-600 dark:text-gray-400">
+              {unevaluatedSections.map((s) => (
+                <li key={s.sectionId}>
+                  {displayTitle(view, s)}: {s.error ?? 'sin motivo indicado'}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </section>
 
       {missing.length > 0 &&

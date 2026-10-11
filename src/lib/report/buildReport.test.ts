@@ -71,7 +71,7 @@ function sampleView(): ReportView {
   };
 }
 
-import { displayTitle, resultsForCriterion, formatFigureNote } from './buildReport';
+import { displayTitle, verdictsForCriterion, formatFigureNote, nonEvaluableLine } from './buildReport';
 
 describe('buildReportBlocks', () => {
   it('genera cabecera, criterios, apartados y sintesis sin nota global', () => {
@@ -108,16 +108,17 @@ describe('buildReportBlocks', () => {
     expect(displayTitle(view, { ...view.sections[0], sectionId: 'desconocida', title: '' })).toBe('desconocida');
   });
 
-  it('resultsForCriterion empareja por id o por nombre', () => {
+  it('verdictsForCriterion empareja por id o por nombre e indica el apartado', () => {
     const view = sampleView();
-    const byId = resultsForCriterion(view, view.rubric.criteria[0]);
+    const byId = verdictsForCriterion(view, view.rubric.criteria[0]);
     expect(byId).toHaveLength(1);
+    expect(byId[0].sectionTitle).toBe('Objetivos del estudio');
     const renamed = { ...view, sections: view.sections.map((s) => ({ ...s })) };
     renamed.sections[0] = {
       ...renamed.sections[0],
       criteria: [{ ...renamed.sections[0].criteria[0], criterionId: 'Rigor tecnico' }],
     };
-    expect(resultsForCriterion(renamed, view.rubric.criteria[0])).toHaveLength(1);
+    expect(verdictsForCriterion(renamed, view.rubric.criteria[0])).toHaveLength(1);
   });
 
   it('formatFigureNote no duplica la palabra Figura', () => {
@@ -125,7 +126,50 @@ describe('buildReportBlocks', () => {
     expect(formatFigureNote('fig-0', 'Muestra la demanda.')).toBe('Figura fig-0: Muestra la demanda.');
   });
 
-  it('marca los criterios sin evidencias y los no evaluables', () => {
+  it('nonEvaluableLine usa singular y plural', () => {
+    expect(nonEvaluableLine(1)).toBe('No evaluable en otro apartado.');
+    expect(nonEvaluableLine(16)).toBe('No evaluable en otros 16 apartados.');
+  });
+
+  it('colapsa los veredictos no evaluables en una sola linea por criterio', () => {
+    const view = sampleView();
+    view.sections[0].criteria.push(
+      {
+        criterionId: 'c1',
+        score: 0,
+        maxScore: 10,
+        evidence: '',
+        feedback: '',
+        evaluable: false,
+        motivo: 'Falta la defensa.',
+      },
+      {
+        criterionId: 'c1',
+        score: 0,
+        maxScore: 10,
+        evidence: '',
+        feedback: '',
+        evaluable: false,
+        motivo: 'Sin texto.',
+      }
+    );
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('No evaluable en otros 2 apartados.');
+    expect(body.match(/No evaluable en este documento/g)?.length ?? 0).toBeLessThanOrEqual(1);
+  });
+
+  it('colapsa los apartados no evaluados en un solo bloque', () => {
+    const view = sampleView();
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('Apartados no evaluados (1)');
+    expect(body).toContain('Anexo sin evaluar');
+  });
+
+  it('muestra un criterio totalmente no evaluable en una sola linea', () => {
     const view = sampleView();
     view.rubric.criteria.push({ id: 'c2', name: 'Exposición', description: '', maxScore: 10, levels: [] });
     view.sections[0].criteria.push({

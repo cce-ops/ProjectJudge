@@ -50,6 +50,17 @@ function sampleView(): ReportView {
         figureNotes: [{ figureId: 'fig-0', note: 'Figura 2: evolución horaria.' }],
         evaluated: true,
       },
+      {
+        sectionId: 's2',
+        title: 'Anexo sin evaluar',
+        slotId: null,
+        criteria: [],
+        strengths: [],
+        improvements: [],
+        figureNotes: [],
+        evaluated: false,
+        error: 'No evaluada: excede el límite de secciones.',
+      },
     ],
     synthesis: {
       overallAssessment: 'Mejorable',
@@ -109,8 +120,7 @@ describe('ResultsPanel', () => {
     expect(screen.queryByText(/Figura Figura/)).not.toBeInTheDocument();
   });
 
-  it('marca los criterios no evaluables y los que no tienen evidencias', () => {
-    const view = sampleView();
+  it('marca los criterios no evaluables y los que no tienen evidencias', () => {    const view = sampleView();
     view.rubric.criteria.push(
       { id: 'c2', name: 'Exposición', description: '', maxScore: 10, levels: [] },
       { id: 'c3', name: 'Sin datos', description: '', maxScore: 10, levels: [] }
@@ -127,5 +137,16 @@ describe('ResultsPanel', () => {
     render(<ResultsPanel view={view} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByText(/No evaluable en este documento/)).toBeInTheDocument();
     expect(screen.getByText(/Sin evidencias en el documento evaluado/)).toBeInTheDocument();
+  });
+
+  it('colapsa los apartados no evaluados en un desplegable', () => {
+    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+    expect(screen.getByText(/Apartados no evaluados \(1\)/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Anexo sin evaluar/).length).toBeGreaterThan(0);
+  });
+
+  it('atribuye cada veredicto a su apartado', () => {
+    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+    expect(screen.getByText(/\[Objetivos del estudio\]/)).toBeInTheDocument();
   });
 });

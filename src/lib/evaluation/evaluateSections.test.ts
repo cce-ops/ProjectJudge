@@ -188,6 +188,40 @@ describe('evaluateSections', () => {
     expect(mergeTinySections(sections)).toHaveLength(2);
   });
 
+  it('omite las secciones vacias sin gastar llamadas ni tope', async () => {
+    const mockClient = { generateJson: vi.fn().mockImplementation(async () => okResponse('s')) } as any;
+    const document = docWithSections([
+      { id: 's1', title: 'Llena', text: longText('llena') },
+      { id: 's2', title: 'Vacía', text: '   ' },
+      { id: 's3', title: 'Otra llena', text: longText('otra') },
+    ]);
+    const rubric = { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any;
+    const result = await evaluateSections({ document, references: [], rubric }, mockClient);
+    expect(mockClient.generateJson).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(3);
+    expect(result[1].evaluated).toBe(false);
+    expect(result[1].error).toMatch(/sin contenido/i);
+  });
+
+  it('prioriza las secciones con mas contenido ante el limite', async () => {
+    const mockClient = { generateJson: vi.fn().mockImplementation(async () => okResponse('s')) } as any;
+    const document = docWithSections([
+      { id: 'corta', title: 'Portada', text: 'Texto breve de portada.' },
+      { id: 'larga', title: 'Conclusiones', text: longText('conclusiones').repeat(3) },
+      { id: 'media', title: 'Anexo', text: 'Texto breve de anexo con algo más de contenido.' },
+    ]);
+    const rubric = { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any;
+    const result = await evaluateSections(
+      { document, references: [], rubric, limits: { maxSections: 2 } },
+      mockClient
+    );
+    expect(mockClient.generateJson).toHaveBeenCalledTimes(2);
+    expect(result.map((r) => r.sectionId)).toEqual(['corta', 'larga', 'media']);
+    expect(result[0].evaluated).toBe(false);
+    expect(result[1].evaluated).toBe(true);
+    expect(result[2].evaluated).toBe(true);
+  });
+
   it('deja de llamar a la IA cuando se cancela', async () => {
     let calls = 0;
     const mockClient = {

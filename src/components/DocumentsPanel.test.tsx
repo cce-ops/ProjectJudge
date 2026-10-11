@@ -7,7 +7,13 @@ describe('DocumentsPanel', () => {
     render(
       <DocumentsPanel
         onSelectFile={vi.fn()}
-        summary={{ sections: 4, figures: 2, words: 1200, warnings: ['Aviso de prueba'] }}
+        summary={{
+          sections: 4,
+          figures: 2,
+          words: 1200,
+          warnings: ['Aviso de prueba'],
+          titles: ['Portada', 'Índice', '(sin título)', 'Conclusiones'],
+        }}
         estimate={{ calls: 6, tokens: 15000 }}
         referenceCount={1}
       />
@@ -18,6 +24,8 @@ describe('DocumentsPanel', () => {
     expect(screen.getByText(/6 llamadas/)).toBeInTheDocument();
     expect(screen.getByText(/15000 tokens/)).toBeInTheDocument();
     expect(screen.getByText(/Aviso de prueba/)).toBeInTheDocument();
+    expect(screen.getByText(/Ver apartados detectados \(4\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Conclusiones/)).toBeInTheDocument();
   });
 
   it('avisa de que se evaluara solo con la rubrica cuando no hay referencias', () => {

@@ -12,15 +12,33 @@ export function displayTitle(view: ReportView, section: SectionEvaluation): stri
   return mapped?.trim() || section.title.trim() || section.sectionId;
 }
 
-/** Resultados de un criterio en todas las secciones, emparejando por id o por nombre. */
-export function resultsForCriterion(
+/** Veredictos de un criterio en todas las secciones, emparejando por id o por nombre. */
+export interface CriterionVerdict {
+  sectionTitle: string;
+  result: SectionCriterionResult;
+}
+
+export function verdictsForCriterion(
   view: ReportView,
   criterion: RubricCriterion
-): SectionCriterionResult[] {
-  return view.sections
-    .filter((s) => s.evaluated)
-    .flatMap((s) => s.criteria)
-    .filter((r) => r.criterionId === criterion.id || r.criterionId === criterion.name);
+): CriterionVerdict[] {
+  const verdicts: CriterionVerdict[] = [];
+  for (const section of view.sections) {
+    if (!section.evaluated) continue;
+    for (const result of section.criteria) {
+      if (result.criterionId === criterion.id || result.criterionId === criterion.name) {
+        verdicts.push({ sectionTitle: displayTitle(view, section), result });
+      }
+    }
+  }
+  return verdicts;
+}
+
+/** Una línea colapsada por los veredictos no evaluables de un criterio. */
+export function nonEvaluableLine(count: number): string {
+  return count === 1
+    ? 'No evaluable en otro apartado.'
+    : `No evaluable en otros ${count} apartados.`;
 }
 
 /** Evita el "Figura Figura 2:" cuando la nota ya empieza por "Figura N:". */
@@ -52,16 +70,23 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
     heading: 'Criterios de evaluación',
     paragraphs: view.rubric.criteria.flatMap((c) => {
       const lines = [`${c.name} (máximo ${c.maxScore}): ${c.description}`];
-      const results = resultsForCriterion(view, c);
-      if (results.length === 0) {
+      const verdicts = verdictsForCriterion(view, c);
+      const evaluated = verdicts.filter((v) => v.result.evaluable);
+      const nonEvaluated = verdicts.filter((v) => !v.result.evaluable);
+      if (verdicts.length === 0) {
         lines.push('Sin evidencias en el documento evaluado.');
+        return lines;
       }
-      for (const r of results) {
-        if (!r.evaluable) {
-          lines.push(`No evaluable en este documento: ${r.motivo || 'sin motivo indicado'}.`);
-        } else {
-          lines.push(`${r.score}/${r.maxScore}. ${r.feedback} Evidencia: ${r.evidence}`);
-        }
+      if (evaluated.length === 0) {
+        lines.push(`No evaluable en este documento: ${nonEvaluated[0].result.motivo || 'sin motivo indicado'}.`);
+        return lines;
+      }
+      lines.push(evaluated.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · '));
+      for (const v of evaluated) {
+        lines.push(`[${v.sectionTitle}]: ${v.result.feedback} Evidencia: ${v.result.evidence}`);
+      }
+      if (nonEvaluated.length > 0) {
+        lines.push(nonEvaluableLine(nonEvaluated.length));
       }
       return lines;
     }),
@@ -69,19 +94,14 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
 
   for (const section of view.sections) {
     if (!section.evaluated) {
-      blocks.push({
-        heading: `Apartado: ${displayTitle(view, section)}`,
-        paragraphs: [`No evaluada: ${section.error ?? 'sin motivo indicado'}.`],
-      });
       continue;
     }
     const paragraphs: string[] = [];
     for (const c of section.criteria) {
       if (!c.evaluable) {
-        paragraphs.push(`No evaluable en este documento: ${c.motivo || 'sin motivo indicado'}.`);
-      } else {
-        paragraphs.push(`${c.score}/${c.maxScore}. ${c.feedback} Evidencia: ${c.evidence}`);
+        continue;
       }
+      paragraphs.push(`${c.score}/${c.maxScore}. ${c.feedback} Evidencia: ${c.evidence}`);
     }
     if (section.strengths.length > 0) paragraphs.push(`Fortalezas: ${section.strengths.join('; ')}`);
     if (section.improvements.length > 0) paragraphs.push(`Mejoras: ${section.improvements.join('; ')}`);
@@ -91,6 +111,16 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
     blocks.push({
       heading: `Apartado: ${displayTitle(view, section)}`,
       paragraphs,
+    });
+  }
+
+  const unevaluated = view.sections.filter((s) => !s.evaluated);
+  if (unevaluated.length > 0) {
+    blocks.push({
+      heading: `Apartados no evaluados (${unevaluated.length})`,
+      paragraphs: unevaluated.map(
+        (s) => `${displayTitle(view, s)}: ${s.error ?? 'sin motivo indicado'}`
+      ),
     });
   }
 

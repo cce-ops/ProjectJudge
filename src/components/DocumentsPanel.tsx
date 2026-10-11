@@ -3,6 +3,7 @@ export interface ExtractionSummary {
   figures: number;
   words: number;
   warnings: string[];
+  titles?: string[];
 }
 
 export interface CostEstimate {
@@ -62,6 +63,18 @@ export function DocumentsPanel({
           <p>
             {summary.sections} secciones, {summary.figures} figuras, {summary.words} palabras.
           </p>
+          {summary.titles && summary.titles.length > 0 && (
+            <details>
+              <summary className="cursor-pointer text-xs font-bold">
+                Ver apartados detectados ({summary.titles.length})
+              </summary>
+              <ul className="mt-1 max-h-40 list-disc space-y-0.5 overflow-y-auto pl-5 text-xs">
+                {summary.titles.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+            </details>
+          )}
           {summary.warnings.map((w, i) => (
             <p key={i} className="text-xs text-amber-700 dark:text-amber-300">
               {w}

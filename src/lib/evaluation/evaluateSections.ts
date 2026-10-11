@@ -91,9 +91,18 @@ export async function evaluateSections(
   const minChars = input.limits?.minSectionChars ?? 300;
 
   const merged = mergeTinySections(input.document.sections, minChars);
-  const sectionsToEvaluate = merged.slice(0, maxSections);
+  // Las secciones sin contenido no se envían a la IA (ni consumen tope): se marcan
+  // como omitidas. De las que sí tienen texto se evalúan las de más contenido, para
+  // que el tope no deje fuera lo sustancial (p. ej. Conclusiones) por culpa de
+  // portadas, índices o restos de paginación.
+  const withContent = merged.filter((s) => s.text.trim().length > 0);
+  const ranked = withContent
+    .map((s) => ({ s }))
+    .sort((a, b) => b.s.text.length - a.s.text.length);
+  const chosen = new Set(ranked.slice(0, maxSections).map((r) => r.s));
+  const sectionsToEvaluate = merged.filter((s) => chosen.has(s));
   const total = sectionsToEvaluate.length;
-  const results: SectionEvaluation[] = new Array(total);
+  const evaluatedBySection = new Map<Section, SectionEvaluation>();
 
   const run = limiter
     ? <T,>(task: () => Promise<T>): Promise<T> => limiter.run(task)
@@ -142,7 +151,7 @@ export async function evaluateSections(
         .map((c: RubricCriterion) => `- ${c.name} (id: ${c.id}, 0-${c.maxScore})`)
         .join('\n');
       const payload = {
-        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${criteriaList}\nTexto de la sección (recortado si es largo):\n${truncatedText}\n\nResponde un objeto por criterio con su "criterionId" EXACTO de la lista. Si un criterio no se puede valorar con el contenido de esta sección ni del documento aportado (por ejemplo, criterios de exposición oral o defensa cuando solo se ha entregado el informe escrito), márcalo con "evaluable": false y explica el motivo en "motivo".`,
+        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${criteriaList}\nTexto de la sección (recortado si es largo):\n${truncatedText}\n\nResponde un objeto por criterio con su "criterionId" EXACTO de la lista. Valora únicamente el texto aportado: solo indica falta de contenido si el texto de la sección está realmente vacío. Si un criterio no se puede valorar con el contenido de esta sección ni del documento aportado (por ejemplo, criterios de exposición oral o defensa cuando solo se ha entregado el informe escrito), márcalo con "evaluable": false y explica el motivo en "motivo".`,
         schema: {
           type: 'object',
           properties: {
@@ -224,14 +233,27 @@ export async function evaluateSections(
   await Promise.all(
     sectionsToEvaluate.map((section, index) =>
       run(() => evaluateOne(section, index)).then((result) => {
-        results[index] = result;
+        evaluatedBySection.set(section, result);
       })
     )
   );
 
-  // Secciones más allá del límite: se listan como no evaluadas.
-  for (const section of merged.slice(maxSections)) {
-    results.push(notEvaluated(section, input.map, input.rubric, 'No evaluada: excede el límite de secciones.', false));
+  // Se reconstruye en orden de documento: evaluadas, omitidas por falta de
+  // contenido y descartadas por el límite, cada una con su motivo.
+  const results: SectionEvaluation[] = [];
+  for (const section of merged) {
+    const evaluated = evaluatedBySection.get(section);
+    if (evaluated) {
+      results.push(evaluated);
+    } else if (!section.text.trim()) {
+      results.push(
+        notEvaluated(section, input.map, input.rubric, 'Sin contenido extraíble: se omitió su evaluación.', false)
+      );
+    } else {
+      results.push(
+        notEvaluated(section, input.map, input.rubric, 'No evaluada: excede el límite de secciones.', false)
+      );
+    }
   }
 
   return results;
