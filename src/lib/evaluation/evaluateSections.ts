@@ -146,12 +146,26 @@ export async function evaluateSections(
     }
     try {
       const truncatedText = section.text.length > maxChars ? section.text.slice(0, maxChars) + '[…]' : section.text;
+      const maxFigs = input.limits?.maxFiguresPerSection ?? 3;
+      const sectionImages: { base64: string; mimeType: string }[] = [];
+      for (const id of section.figureIds ?? []) {
+        if (sectionImages.length >= maxFigs) break;
+        const figure = (input.document.figures ?? []).find((f) => f.id === id);
+        if (figure?.base64) {
+          sectionImages.push({ base64: figure.base64, mimeType: figure.mimeType });
+        }
+      }
 
       const criteriaList = input.rubric.criteria
         .map((c: RubricCriterion) => `- ${c.name} (id: ${c.id}, 0-${c.maxScore})`)
         .join('\n');
+      const figuresLine =
+        sectionImages.length > 0
+          ? `\n\nSe adjuntan ${sectionImages.length} figuras de esta sección: analízalas visualmente y coméntalas en figureNotes con su contenido real.`
+          : '';
       const payload = {
-        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${criteriaList}\nTexto de la sección (recortado si es largo):\n${truncatedText}\n\nResponde un objeto por criterio con su "criterionId" EXACTO de la lista. Valora únicamente el texto aportado: solo indica falta de contenido si el texto de la sección está realmente vacío. Si un criterio no se puede valorar con el contenido de esta sección ni del documento aportado (por ejemplo, criterios de exposición oral o defensa cuando solo se ha entregado el informe escrito), márcalo con "evaluable": false y explica el motivo en "motivo".`,
+        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${criteriaList}\nTexto de la sección (recortado si es largo):\n${truncatedText}${figuresLine}\n\nResponde un objeto por criterio con su "criterionId" EXACTO de la lista. Valora únicamente el texto aportado: solo indica falta de contenido si el texto de la sección está realmente vacío. Si un criterio no se puede valorar con el contenido de esta sección ni del documento aportado (por ejemplo, criterios de exposición oral o defensa cuando solo se ha entregado el informe escrito), márcalo con "evaluable": false y explica el motivo en "motivo".`,
+        images: sectionImages.length > 0 ? sectionImages : undefined,
         schema: {
           type: 'object',
           properties: {

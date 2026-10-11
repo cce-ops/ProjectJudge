@@ -6,14 +6,14 @@ const mockPages = [
     pageNumber: 1,
     lines: ['1. Antecedentes y contexto', 'Este proyecto surge de la necesidad...'],
     images: [
-      { name: 'image1.png', width: 200, height: 200, hash: 'hash1' },
+      { name: 'image1.png', width: 200, height: 200, hash: 'hash1', base64: 'AAA', bytes: 40000, mimeType: 'image/jpeg' },
     ],
   },
   {
     pageNumber: 2,
     lines: ['2. METODOLOGÍA', 'El enfoque es cuantitativo...'],
     images: [
-      { name: 'image2.png', width: 100, height: 100, hash: 'hash2' },
+      { name: 'image2.png', width: 100, height: 100, hash: 'hash2', base64: 'BBB', bytes: 40000, mimeType: 'image/jpeg' },
     ],
   },
 ];
@@ -34,6 +34,18 @@ describe('pdfPagesToModel', () => {
   it('produces figure candidates', () => {
     const { figureCandidates } = pdfPagesToModel(mockPages, []);
     expect(figureCandidates.length).toBe(2);
+  });
+
+  it('asigna a cada seccion las figuras de sus paginas', () => {
+    const { sections } = pdfPagesToModel(mockPages, []);
+    expect(sections[0].figureIds).toEqual(['fig-0']);
+    expect(sections[1].figureIds).toEqual(['fig-1']);
+  });
+
+  it('propaga el contenido real de las imagenes a las candidatas', () => {
+    const { figureCandidates } = pdfPagesToModel(mockPages, []);
+    expect(figureCandidates[0].base64).toBe('AAA');
+    expect(figureCandidates[0].mimeType).toBe('image/jpeg');
   });
 });
 

@@ -3,7 +3,7 @@ import type { Section, FigureCandidate } from '../../types/extract';
 export interface PdfPageDump {
   pageNumber: number;
   lines: string[];
-  images: { name: string; width: number; height: number; hash: string }[];
+  images: { name: string; width: number; height: number; hash: string; base64: string; bytes: number; mimeType: string }[];
 }
 
 export function looksLikeHeading(line: string, keywords: string[]): boolean {
@@ -69,15 +69,25 @@ export function pdfPagesToModel(
     for (const img of page.images) {
       figureCandidates.push({
         id: `fig-${figureCandidates.length}`,
-        base64: '',
-        mimeType: 'image/png',
+        base64: img.base64,
+        mimeType: img.mimeType,
         width: img.width,
         height: img.height,
-        bytes: 0,
+        bytes: img.bytes,
         hash: img.hash,
         sourcePage: page.pageNumber,
       });
     }
+  }
+
+  // Cada sección referencia las figuras de las páginas que abarca, para que la
+  // evaluación envíe a la IA solo las imágenes de cada apartado.
+  for (const section of sections) {
+    const start = section.pageStart ?? 0;
+    const end = section.pageEnd ?? start;
+    section.figureIds = figureCandidates
+      .filter((c) => (c.sourcePage ?? 0) >= start && (c.sourcePage ?? 0) <= end)
+      .map((c) => c.id);
   }
 
   if (!hasText) {

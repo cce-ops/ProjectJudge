@@ -8,6 +8,8 @@ export function selectFigures(
   candidates: FigureCandidate[],
   options: { maxFigures?: number } = {}
 ): { figures: Figure[]; discarded: number } {
+  // Se conserva el id de cada candidata: las secciones referencian las figuras
+  // por ese identificador para enviar a la IA solo las de cada apartado.
   const seenHashes = new Set<string>();
   const selected: Figure[] = [];
   let discarded = 0;
@@ -30,7 +32,7 @@ export function selectFigures(
 
     seenHashes.add(candidate.hash);
     selected.push({
-      id: `fig-${selected.length}`,
+      id: candidate.id,
       base64: candidate.base64,
       mimeType: candidate.mimeType,
       width: candidate.width,

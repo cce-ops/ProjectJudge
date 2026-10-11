@@ -30,10 +30,16 @@ export function createGeminiClient(deps: GeminiDeps): JsonClient {
       let lastError: any = null;
       for (let i = 0; i <= retries; i++) {
         try {
+          const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
+            { text: request.prompt },
+          ];
+          for (const image of request.images ?? []) {
+            parts.push({ inlineData: { data: image.base64, mimeType: image.mimeType } });
+          }
           const response = await withTimeout(
             deps.generateContent({
               model,
-              contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
+              contents: [{ role: 'user', parts }],
               config: {
                 responseMimeType: 'application/json',
                 responseSchema: request.schema,

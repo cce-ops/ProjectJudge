@@ -111,8 +111,7 @@ describe('evaluateSections', () => {
     expect(result).toHaveLength(3);
   });
 
-  it('envia todos los criterios de la rubrica, no solo los cuatro primeros', async () => {
-    const criteria = Array.from({ length: 6 }, (_, i) => ({
+  it('envia todos los criterios de la rubrica, no solo los cuatro primeros', async () => {    const criteria = Array.from({ length: 6 }, (_, i) => ({
       id: `c${i}`,
       name: `Criterio${i}`,
       maxScore: 10,
@@ -178,6 +177,53 @@ describe('evaluateSections', () => {
     expect(result).toHaveLength(5);
     expect(result[3].evaluated).toBe(false);
     expect(result[3].error).toMatch(/cuota|repetidamente|interrumpida/i);
+  });
+
+  it('adjunta las figuras de la seccion con el tope configurado', async () => {
+    const prompts: string[] = [];
+    const imagesSent: unknown[][] = [];
+    const mockClient = {
+      generateJson: vi.fn().mockImplementation(async (request: any) => {
+        prompts.push(request.prompt);
+        imagesSent.push(request.images ?? []);
+        return okResponse('s');
+      }),
+    } as any;
+    const figures = Array.from({ length: 5 }, (_, i) => ({
+      id: `fig-${i}`,
+      base64: `base64-${i}`,
+      mimeType: 'image/jpeg',
+      width: 400,
+      height: 300,
+      bytes: 50000,
+    }));
+    const document = {
+      ...docWithSections([{ id: 's1', title: 'Con figuras', text: longText('texto') }]),
+      figures,
+    } as ExtractedDocument;
+    document.sections[0].figureIds = figures.map((f) => f.id);
+    const rubric = { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any;
+    await evaluateSections(
+      { document, references: [], rubric, limits: { maxFiguresPerSection: 2 } },
+      mockClient
+    );
+    expect(imagesSent).toHaveLength(1);
+    expect(imagesSent[0]).toHaveLength(2);
+    expect(prompts[0]).toContain('figuras');
+  });
+
+  it('no adjunta imagenes cuando la seccion no tiene figuras', async () => {
+    const requests: any[] = [];
+    const mockClient = {
+      generateJson: vi.fn().mockImplementation(async (request: any) => {
+        requests.push(request);
+        return okResponse('s');
+      }),
+    } as any;
+    const document = docWithSections([{ id: 's1', title: 'Sin figuras', text: longText('texto') }]);
+    const rubric = { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any;
+    await evaluateSections({ document, references: [], rubric }, mockClient);
+    expect(requests[0].images ?? []).toHaveLength(0);
   });
 
   it('mergeTinySections deja intactas las secciones con contenido suficiente', () => {
@@ -265,6 +311,14 @@ describe('evaluateSections', () => {
     const merged = mergeTinySections(sections);
     expect(merged).toHaveLength(1);
     expect(merged[0].text).toContain('Rótulo suelto.');
+  });
+
+  it('mergeTinySections deja intactas las secciones con contenido suficiente', () => {
+    const sections = [
+      { id: 'a', title: 'A', level: 1, text: longText('a'), figureIds: [] as string[] },
+      { id: 'b', title: 'B', level: 1, text: longText('b'), figureIds: [] as string[] },
+    ];
+    expect(mergeTinySections(sections)).toHaveLength(2);
   });
 
   it('normaliza al identificador canonico cuando la IA devuelve el nombre', async () => {

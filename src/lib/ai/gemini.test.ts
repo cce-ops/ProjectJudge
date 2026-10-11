@@ -60,4 +60,18 @@ describe('createGeminiClient', () => {
     await expect(client.generateJson({ prompt: 'x', schema: {} })).rejects.toThrow(/espera agotado/i);
     expect(hanging).toHaveBeenCalledTimes(1);
   });
+
+  it('adjunta las imagenes como datos en linea', async () => {
+    const mockGenerateContent = vi.fn().mockResolvedValue({ text: '{"ok":true}' });
+    const client = createGeminiClient({ generateContent: mockGenerateContent });
+    await client.generateJson({
+      prompt: 'Analiza',
+      schema: {},
+      images: [{ base64: 'AAA', mimeType: 'image/jpeg' }],
+    });
+    const params = mockGenerateContent.mock.calls[0][0];
+    const parts = params.contents[0].parts;
+    expect(parts[0]).toEqual({ text: 'Analiza' });
+    expect(parts[1]).toEqual({ inlineData: { data: 'AAA', mimeType: 'image/jpeg' } });
+  });
 });

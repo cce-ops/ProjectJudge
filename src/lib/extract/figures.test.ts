@@ -13,8 +13,8 @@ describe('selectFigures', () => {
 
   it('filters figures by area, side and bytes', () => {
     const { figures, discarded } = selectFigures(mockCandidates);
-    // Only id 1 and 5 should pass
-    expect(figures.map(f => f.id)).toEqual(['fig-0', 'fig-1']);
+    // Only id 1 and 5 should pass, keeping their own ids
+    expect(figures.map(f => f.id)).toEqual(['1', '5']);
     expect(discarded).toBe(3);
   });
 
@@ -27,7 +27,7 @@ describe('selectFigures', () => {
   it('respects maxFigures limit', () => {
     const { figures } = selectFigures(mockCandidates, { maxFigures: 1 });
     expect(figures.length).toBe(1);
-    expect(figures[0].id).toBe('fig-0');
+    expect(figures[0].id).toBe('1');
   });
 });
 
