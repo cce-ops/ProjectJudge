@@ -28,8 +28,9 @@ Inspiración (solo lectura): https://github.com/cce087/evaluador-presentaciones-
 - [x] 4. Proponer enfoques (3 propuestos; elegido: proyecto nuevo limpio)
 - [x] 5a. Diseño — sección 1: arquitectura y módulos — **aprobada**
 - [x] 5b. Diseño — sección 2: flujo de datos y control de tokens — **aprobada**
-- [ ] 5c. Diseño — sección 3: interfaz, estados, errores y pruebas
-- [ ] 6. Escribir spec en `docs/superpowers/specs/2026-10-10-evaluador-informes-ingenieria-design.md` + commit
-- [ ] 7. Autorevisión de la spec (placeholders, coherencia, ámbito, ambigüedad)
-- [ ] 8. Revisión de la spec por el usuario
+- [x] 5c. Diseño — sección 3: interfaz, estados, errores y pruebas — **aprobada**
+- [x] 6. Spec escrita en `docs/superpowers/specs/2026-10-11-proyectjudge-design.md` + commit
+- [x] 7. Autorevisión de la spec (sin placeholders; presupuesto coherente entre §6 y §9; se resolvió
+      la ambigüedad del origen del texto de la rúbrica en §8; ámbito acotado a un solo plan)
+- [x] 8. Revisión de la spec por el usuario — **aprobada** (2026-10-11)
 - [ ] 9. Pasar a `writing-plans` (plan de implementación)
