@@ -213,6 +213,25 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
           </section>
         ))}
 
+      {view.checks.length > 0 && (
+        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Comprobaciones</h4>
+          <ul className="list-disc space-y-1 pl-5 text-sm">
+            {view.checks.map((check) => (
+              <li key={check.id}>
+                <span className={check.passed ? 'text-emerald-700' : 'font-bold text-amber-700'}>
+                  {check.passed ? '✓' : '⚠'}
+                </span>{' '}
+                {check.message}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-gray-500">
+            Comprobaciones mecánicas sobre el documento, sin intervención de la IA.
+          </p>
+        </section>
+      )}
+
       {view.synthesis.nextSteps.length > 0 && (
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Para subir de nivel</h4>

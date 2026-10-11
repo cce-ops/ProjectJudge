@@ -49,6 +49,7 @@ function sampleView(): ReportView {
       about: 'Informe de ejemplo.',
       nextSteps: [],
     },
+    checks: [],
   };
 }
 

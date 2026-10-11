@@ -38,13 +38,19 @@ export interface Synthesis {
   about: string;
   nextSteps: string[];
 }
+export interface DocumentCheck {
+  id: string;
+  passed: boolean;
+  message: string;
+}
 export interface ReportView {
   reportId: string; 
   createdAt: string; 
   model: string;
   rubric: import('./rubric').RubricModel; 
   document: { fileName: string; format: string; stats: import('./extract').ExtractedDocument['stats'] };
-  map: DocumentMap; 
-  sections: SectionEvaluation[]; 
+  map: DocumentMap;
+  sections: SectionEvaluation[];
   synthesis: Synthesis;
+  checks: DocumentCheck[];
 }

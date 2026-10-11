@@ -132,6 +132,16 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
     });
   }
 
+  if (view.checks.length > 0) {
+    blocks.push({
+      heading: 'Comprobaciones',
+      paragraphs: [
+        ...view.checks.map((c) => `${c.passed ? '✓' : '⚠'} ${c.message}`),
+        'Comprobaciones mecánicas sobre el documento, sin intervención de la IA.',
+      ],
+    });
+  }
+
   if (view.synthesis.nextSteps.length > 0) {
     blocks.push({
       heading: 'Para subir de nivel',

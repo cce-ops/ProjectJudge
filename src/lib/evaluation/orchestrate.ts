@@ -6,6 +6,7 @@ import { synthesize } from './synthesize';
 import type { RubricModel } from '../../types/rubric';
 import type { JsonClient } from '../ai/gemini';
 import { createConcurrencyLimiter, type ConcurrencyLimiter } from '../ai/limiter';
+import { buildChecks } from '../report/checks';
 
 export interface ReferenceSummary {
   fileName: string;
@@ -111,5 +112,6 @@ export async function orchestrate(
     map: documentMap,
     sections: evaluatedSections,
     synthesis,
+    checks: buildChecks(input.document.text, input.document.figures.length),
   };
 }

@@ -17,8 +17,9 @@ Es una herramienta de **apoyo**: no emite nota global, para no suplantar el crit
    hasta 2 informes de referencia. Antes de lanzar se muestra el resumen de extracción y una
    estimación de llamadas y tokens.
 3. **Resultados** — Ficha del informe, valoración global cualitativa, criterios con puntuación y
-   evidencia, evaluación por apartados, criterios no evaluables, apartados ausentes, próximos pasos
-   y coherencia. Se puede descargar en PDF (impresión) y en Word editable.
+   evidencia, evaluación por apartados, criterios no evaluables, comprobaciones mecánicas,
+   apartados ausentes, próximos pasos y coherencia. Se puede descargar en PDF (impresión)
+   y en Word editable.
 
 ## Requisitos
 

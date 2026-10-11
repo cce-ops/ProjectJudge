@@ -68,6 +68,7 @@ function sampleView(): ReportView {
       about: 'Informe sobre una comunidad energética con tres escenarios.',
       nextSteps: ['Cuantificar el CAPEX.', 'Corregir la Tabla 2.'],
     },
+    checks: [],
   };
 }
 
@@ -167,6 +168,16 @@ describe('buildReportBlocks', () => {
       .join('\n');
     expect(body).toContain('Apartados no evaluados (1)');
     expect(body).toContain('Anexo sin evaluar');
+  });
+
+  it('incluye las comprobaciones en el informe', () => {
+    const view = sampleView();
+    view.checks = [{ id: 'decimales', passed: false, message: 'Se mezclan coma y punto.' }];
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('Comprobaciones');
+    expect(body).toContain('Se mezclan coma y punto.');
   });
 
   it('muestra un criterio totalmente no evaluable en una sola linea', () => {

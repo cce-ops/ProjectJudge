@@ -72,6 +72,10 @@ function sampleView(): ReportView {
       about: 'Informe sobre una comunidad energética con tres escenarios.',
       nextSteps: ['Cuantificar el CAPEX.'],
     },
+    checks: [
+      { id: 'figuras-citadas', passed: true, message: 'Figuras citadas: 2. Imágenes detectadas: 1.' },
+      { id: 'decimales', passed: false, message: 'Se mezclan coma y punto.' },
+    ],
   };
 }
 
@@ -148,5 +152,11 @@ describe('ResultsPanel', () => {
   it('atribuye cada veredicto a su apartado', () => {
     render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByText(/\[Objetivos del estudio\]/)).toBeInTheDocument();
+  });
+
+  it('muestra las comprobaciones mecanicas', () => {
+    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: 'Comprobaciones' })).toBeInTheDocument();
+    expect(screen.getByText(/Se mezclan coma y punto/)).toBeInTheDocument();
   });
 });
