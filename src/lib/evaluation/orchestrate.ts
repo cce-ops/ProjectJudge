@@ -1,6 +1,5 @@
-import { createConcurrencyLimiter } from '../ai/limiter';
 import type { ExtractedDocument } from '../../types/extract';
-import type { DocumentMap, SectionEvaluation, ReportView, Synthesis } from '../../types/evaluation';
+import type { ReportView } from '../../types/evaluation';
 import { buildDocumentMap } from './buildDocumentMap';
 import { evaluateSections } from './evaluateSections';
 import { synthesize } from './synthesize';

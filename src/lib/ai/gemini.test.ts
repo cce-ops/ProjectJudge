@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createGeminiClient, type JsonRequest } from './gemini';
+import { describe, it, expect, vi } from 'vitest';
+import { createGeminiClient } from './gemini';
 
 describe('createGeminiClient', () => {
   it('calls generateContent with the correct model and retries on transient errors', async () => {

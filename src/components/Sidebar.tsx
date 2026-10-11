@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Settings } from '../types/app';
 
-export const AVAILABLE_MODELS = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+const AVAILABLE_MODELS = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
 
 interface SidebarProps {
   settings: Settings;

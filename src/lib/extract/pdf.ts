@@ -1,6 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { pdfPagesToModel, type PdfPageDump } from './pdfModel';
-import { selectFigures, reencodeFigure, type CanvasFactory } from './figures';
+import { selectFigures } from './figures';
 import type { ExtractedDocument } from '../../types/extract';
 import { truncateText } from '../text';
 

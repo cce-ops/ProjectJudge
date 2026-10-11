@@ -1,5 +1,5 @@
 import type { ExtractedDocument } from '../../types/extract';
-import type { SectionEvaluation, DocumentMap, TemplateSlot } from '../../types/evaluation';
+import type { SectionEvaluation, DocumentMap } from '../../types/evaluation';
 import type { RubricModel } from '../../types/rubric';
 import type { JsonClient } from '../ai/gemini';
 
@@ -17,7 +17,6 @@ export async function evaluateSections(
 ): Promise<SectionEvaluation[]> {
   const maxSections = input.limits?.maxSections ?? 20;
   const maxChars = input.limits?.maxSectionChars ?? 6000;
-  const maxFigs = input.limits?.maxFiguresPerSection ?? 3;
   const results: SectionEvaluation[] = [];
 
   const sectionsToEvaluate = input.document.sections.slice(0, maxSections);

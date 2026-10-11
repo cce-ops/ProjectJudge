@@ -1,8 +1,13 @@
 import type { ExtractedDocument } from '../../types/extract';
 import { markdownToModel } from './markdown';
-import { pdfPagesToModel } from './pdfModel';
-import { documentXmlToModel } from './docxModel';
+import { documentXmlToModel, type DocxMedia } from './docxModel';
+import { selectFigures } from './figures';
+import { extractPdf } from './pdf';
 import JSZip from 'jszip';
+
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
 
 export async function extractDocument(file: File): Promise<ExtractedDocument> {
   const name = file.name.toLowerCase();
@@ -16,43 +21,42 @@ export async function extractDocument(file: File): Promise<ExtractedDocument> {
       sections,
       figures,
       warnings,
-      stats: { pages: undefined, words: text.split(/\s+/).filter(Boolean).length, figuresUsed: 0, figuresDiscarded: 0 },
+      stats: { pages: undefined, words: countWords(text), figuresUsed: 0, figuresDiscarded: 0 },
     };
   }
   if (name.endsWith('.docx')) {
     const arrayBuffer = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(arrayBuffer);
     const documentXml = await zip.file('word/document.xml')?.async('text');
-    const mediaFiles = Object.values(zip.files).filter(f => f.name.startsWith('word/media/'));
-    const media: Record<string, any> = {};
+    const mediaFiles = Object.values(zip.files).filter((f) => f.name.startsWith('word/media/'));
+    const media: Record<string, DocxMedia> = {};
     for (const f of mediaFiles) {
       const base64 = await f.async('base64');
-      media[f.name.split('/').pop() || ''] = { base64, mimeType: 'image/png', width: 0, height: 0, bytes: 0, hash: '' };
+      media[f.name.split('/').pop() || ''] = {
+        base64,
+        mimeType: 'image/png',
+        width: 0,
+        height: 0,
+        bytes: 0,
+        hash: f.name,
+      };
     }
     const xmlString = documentXml || '';
     const { sections, figureCandidates, warnings } = documentXmlToModel(xmlString, media);
+    const { figures, discarded } = selectFigures(figureCandidates);
+    const text = sections.map((s) => `${s.title}: ${s.text}`).join('\n');
     return {
       fileName: file.name,
       format: 'docx',
-      text: sections.map(s => s.title + ': ' + s.text).join('\n'),
+      text,
       sections,
-      figures: figureCandidates,
+      figures,
       warnings,
-      stats: { pages: undefined, words: 0, figuresUsed: 0, figuresDiscarded: 0 },
+      stats: { pages: undefined, words: countWords(text), figuresUsed: figures.length, figuresDiscarded: discarded },
     };
   }
   if (name.endsWith('.pdf')) {
-    // En el envoltorio real usaríamos pdfjs; aquí usamos el modelo simplificado
-    // Para que no falle, devolvemos un documento vacío con aviso
-    return {
-      fileName: file.name,
-      format: 'pdf',
-      text: '',
-      sections: [],
-      figures: [],
-      warnings: ['PDF: usar pdfPagesToModel en pdf.ts'],
-      stats: { pages: 0, words: 0, figuresUsed: 0, figuresDiscarded: 0 },
-    };
+    return extractPdf(file);
   }
   throw new Error('Formato no compatible. Usa .pdf, .docx, .md o .txt');
 }

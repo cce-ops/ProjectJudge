@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { selectFigures, reencodeFigure } from './figures';
-import type { FigureCandidate, Figure } from '../../types/extract';
+import type { FigureCandidate } from '../../types/extract';
 
 describe('selectFigures', () => {
   const mockCandidates: FigureCandidate[] = [
@@ -37,9 +37,8 @@ describe('reencodeFigure', () => {
       id: '1', base64: 'a', mimeType: 'image/png', width: 2000, height: 1000, bytes: 100000, hash: 'h1'
     };
     
-    const mockCanvasFactory = (w: number, h: number) => ({
-      canvas: { width: w, height: h, toDataURL: () => 'data:image/jpeg;base64,encoded' } as any,
-      ctx: {} as any,
+    const mockCanvasFactory = () => ({
+      canvas: { toDataURL: () => 'data:image/jpeg;base64,encoded' },
     });
 
     const result = await reencodeFigure(candidate, 1024, mockCanvasFactory);

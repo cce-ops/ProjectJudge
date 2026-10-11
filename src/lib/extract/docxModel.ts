@@ -1,15 +1,17 @@
 import type { Section, FigureCandidate } from '../../types/extract';
 
-function getTextContent(el: Element | null): string {
-  if (!el) return '';
-  return Array.from(el.getElementsByTagName('t'))
-    .map(t => t.textContent || '')
-    .join('');
+export interface DocxMedia {
+  base64: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  bytes: number;
+  hash: string;
 }
 
 export function documentXmlToModel(
   xml: string,
-  media: Record<string, unknown>
+  media: Record<string, DocxMedia>
 ): { sections: Section[]; figureCandidates: FigureCandidate[]; warnings: string[] } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xml, 'application/xml');
@@ -68,6 +70,18 @@ export function documentXmlToModel(
       id: 'sec-0', title: '', level: 0, text: '', pageStart: 0, pageEnd: 0, figureIds: [],
     });
     warnings.push('El documento no contiene encabezados; se ha tratado como una única sección.');
+  }
+
+  for (const [name, info] of Object.entries(media ?? {})) {
+    figureCandidates.push({
+      id: `fig-${figureCandidates.length}`,
+      base64: info.base64,
+      mimeType: info.mimeType,
+      width: info.width,
+      height: info.height,
+      bytes: info.bytes,
+      hash: info.hash || name,
+    });
   }
 
   return { sections, figureCandidates, warnings };

@@ -1,8 +1,7 @@
 import type { Figure, FigureCandidate } from '../../types/extract';
 
 export type CanvasFactory = (width: number, height: number) => {
-  canvas: HTMLCanvasElement;
-  ctx: CanvasRenderingContext2D;
+  canvas: Pick<HTMLCanvasElement, 'toDataURL'>;
 };
 
 export function selectFigures(
@@ -52,10 +51,10 @@ export async function reencodeFigure(
   const width = ratio > 1 ? maxEdge : Math.round(maxEdge * ratio);
   const height = ratio > 1 ? Math.round(maxEdge / ratio) : maxEdge;
 
-  const { canvas, ctx } = factory(width, height);
-  
-  // In a real browser, we'd draw the image here
-  // For the test, the mock handles the result
+  const { canvas } = factory(width, height);
+
+  // En un navegador real aquí se dibujaría la imagen en el canvas;
+  // el mock del test resuelve directamente el dataURL.
 
   return {
     id: `fig-reencoded`,

@@ -20,4 +20,13 @@ describe('documentXmlToModel', () => {
     expect(sections.length).toBe(1);
     expect(warnings.some(w => w.includes('encabezados'))).toBe(true);
   });
+
+  it('convierte la media en candidatas a figura', () => {
+    const xml = `<w:body xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:r><w:t>Hola.</w:t></w:r></w:p></w:body>`;
+    const { figureCandidates } = documentXmlToModel(xml, {
+      image1: { base64: 'abc', mimeType: 'image/png', width: 200, height: 200, bytes: 50000, hash: 'h1' },
+    });
+    expect(figureCandidates).toHaveLength(1);
+    expect(figureCandidates[0].base64).toBe('abc');
+  });
 });

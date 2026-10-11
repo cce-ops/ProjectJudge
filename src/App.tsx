@@ -4,11 +4,13 @@ import { ErrorNotice } from './components/ErrorNotice';
 import { RubricPanel } from './components/RubricPanel';
 import { DocumentsPanel } from './components/DocumentsPanel';
 import { ProgressPanel } from './components/ProgressPanel';
+import { ResultsPanel } from './components/ResultsPanel';
 import { useSettings } from './hooks/useSettings';
 import { useEvaluation } from './hooks/useEvaluation';
 import { appReducer, initialState } from './state/appMachine';
 import { createGeminiClientFromKey } from './lib/ai/geminiClient';
 import { extractDocument } from './lib/extract/extractDocument';
+import { toDocx } from './lib/report/toDocx';
 import { estimateEvaluation, type ReferenceSummary } from './lib/evaluation/orchestrate';
 
 export default function App() {
@@ -124,17 +126,22 @@ export default function App() {
           {inProgress && <ProgressPanel progress={state.progress} onCancel={cancel} />}
 
           {state.step === 'results' && state.report && (
-            <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <h3 className="text-lg font-bold">Valoración global: {state.report.synthesis.overallAssessment}</h3>
-              <p className="text-sm">{state.report.synthesis.summary}</p>
-              <button
-                type="button"
-                onClick={() => dispatch({ type: 'evaluation/reset' })}
-                className="rounded-xl border border-gray-300 px-4 py-2 text-xs font-bold"
-              >
-                Evaluar otro informe
-              </button>
-            </section>
+            <ResultsPanel
+              view={state.report}
+              onReset={() => dispatch({ type: 'evaluation/reset' })}
+              onDownloadWord={() => {
+                const report = state.report;
+                if (!report) return;
+                void toDocx(report).then((blob) => {
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${report.document.fileName.replace(/\.[^.]+$/, '')}-evaluacion.docx`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                });
+              }}
+            />
           )}
         </div>
       </main>
