@@ -76,4 +76,35 @@ describe('appReducer', () => {
     const s = appReducer(initialState(), { type: 'documents/submitted' });
     expect(s.error).toContain('Introduce tu API key de Gemini');
   });
+
+  it('rubric/failed fija el error y se queda en rubric', () => {
+    const s = appReducer(initialState(), { type: 'rubric/failed', error: 'No se pudo interpretar la rúbrica' });
+    expect(s.error).toContain('rúbrica');
+    expect(s.step).toBe('rubric');
+  });
+
+  it('references/added guarda hasta 2 referencias e ignora la tercera', () => {
+    const ref = (id: string) => ({
+      fileName: `${id}.pdf`,
+      format: 'pdf',
+      text: 'texto',
+      stats: { words: 1, figuresUsed: 0, figuresDiscarded: 0 },
+    });
+    const s1 = appReducer(initialState(), { type: 'references/added', reference: ref('a') });
+    const s2 = appReducer(s1, { type: 'references/added', reference: ref('b') });
+    const s3 = appReducer(s2, { type: 'references/added', reference: ref('c') });
+    expect(s3.references.map((r) => r.fileName)).toEqual(['a.pdf', 'b.pdf']);
+  });
+
+  it('references/removed borra una referencia', () => {
+    const ref = (fileName: string) => ({
+      fileName,
+      format: 'pdf',
+      text: 'texto',
+      stats: { words: 1, figuresUsed: 0, figuresDiscarded: 0 },
+    });
+    const s1 = appReducer(initialState(), { type: 'references/added', reference: ref('a.pdf') });
+    const s2 = appReducer(s1, { type: 'references/removed', fileName: 'a.pdf' });
+    expect(s2.references).toEqual([]);
+  });
 });

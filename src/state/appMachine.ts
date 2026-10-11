@@ -2,6 +2,7 @@ import type { Settings } from '../types/app';
 import type { ExtractedDocument } from '../types/extract';
 import type { RubricModel } from '../types/rubric';
 import type { ReportView } from '../types/evaluation';
+import type { ReferenceSummary } from '../lib/evaluation/orchestrate';
 import { DEFAULT_SETTINGS } from '../lib/storage/settings';
 
 export type Step = 'rubric' | 'documents' | 'mapping' | 'sections' | 'synthesizing' | 'results';
@@ -18,6 +19,7 @@ export interface AppState {
   settings: Settings;
   rubric: RubricModel | null;
   document: ExtractedDocument | null;
+  references: ReferenceSummary[];
   report: ReportView | null;
   progress: EvaluationProgressState | null;
   error: string | null;
@@ -25,7 +27,10 @@ export interface AppState {
 
 export type AppAction =
   | { type: 'rubric/parsed'; rubric: RubricModel }
+  | { type: 'rubric/failed'; error: string }
   | { type: 'rubric/cleared' }
+  | { type: 'references/added'; reference: ReferenceSummary }
+  | { type: 'references/removed'; fileName: string }
   | { type: 'documents/extracted'; document: ExtractedDocument }
   | { type: 'documents/submitted' }
   | { type: 'evaluation/progress'; progress: EvaluationProgressState }
@@ -41,6 +46,7 @@ export function initialState(settings?: Settings): AppState {
     settings: settings ? { ...settings } : { ...DEFAULT_SETTINGS },
     rubric: null,
     document: null,
+    references: [],
     report: null,
     progress: null,
     error: null,
@@ -51,8 +57,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'rubric/parsed':
       return { ...state, rubric: action.rubric, step: 'documents', error: null };
+    case 'rubric/failed':
+      return { ...state, error: action.error };
     case 'rubric/cleared':
       return { ...state, rubric: null, step: 'rubric' };
+    case 'references/added':
+      if (state.references.length >= 2) return state;
+      if (state.references.some((r) => r.fileName === action.reference.fileName)) return state;
+      return { ...state, references: [...state.references, action.reference] };
+    case 'references/removed':
+      return { ...state, references: state.references.filter((r) => r.fileName !== action.fileName) };
     case 'documents/extracted':
       return { ...state, document: action.document, step: 'mapping', error: null, progress: null };
     case 'documents/submitted':

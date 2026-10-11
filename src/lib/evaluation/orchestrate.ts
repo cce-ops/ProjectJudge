@@ -54,6 +54,7 @@ export interface OrchestrateInput {
   references: ReferenceSummary[];
   rubric: RubricModel;
   client: JsonClient;
+  model?: string;
   limiter?: { run: <T>(task: () => Promise<T>) => Promise<T> };
   onProgress?: (progress: { phase: 'map' | 'sections' | 'synthesis'; sectionIndex?: number; sectionTotal?: number; sectionTitle?: string }) => void;
 }
@@ -92,7 +93,7 @@ export async function orchestrate(
   return {
     reportId: newIdFn(),
     createdAt: now(),
-    model: 'gemini-3.8-flash',
+    model: input.model ?? 'gemini-3.8-flash',
     rubric: input.rubric,
     document: { fileName: input.document.fileName, format: input.document.format, stats: input.document.stats },
     map: documentMap,

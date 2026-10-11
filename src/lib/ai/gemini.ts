@@ -10,6 +10,7 @@ export interface GeminiDeps {
   sleep?: (ms: number) => Promise<void>;
   maxRetries?: number;
   baseDelayMs?: number;
+  model?: string;
 }
 
 export interface JsonClient {
@@ -21,13 +22,14 @@ export function createGeminiClient(deps: GeminiDeps): JsonClient {
     generateJson: async (request) => {
       const retries = deps.maxRetries ?? 4;
       const delay = deps.baseDelayMs ?? 2000;
+      const model = deps.model ?? 'gemini-3.8-flash';
       const sleep = deps.sleep || ((ms: number) => new Promise(r => setTimeout(r, ms)));
 
       let lastError: any = null;
       for (let i = 0; i <= retries; i++) {
         try {
           const response = await deps.generateContent({
-            model: 'gemini-3.8-flash',
+            model,
             contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
             config: {
               responseMimeType: 'application/json',
