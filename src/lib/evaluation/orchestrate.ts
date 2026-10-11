@@ -1,10 +1,11 @@
 import type { ExtractedDocument } from '../../types/extract';
 import type { ReportView } from '../../types/evaluation';
 import { buildDocumentMap } from './buildDocumentMap';
-import { evaluateSections } from './evaluateSections';
+import { evaluateSections, mergeTinySections } from './evaluateSections';
 import { synthesize } from './synthesize';
 import type { RubricModel } from '../../types/rubric';
 import type { JsonClient } from '../ai/gemini';
+import { createConcurrencyLimiter, type ConcurrencyLimiter } from '../ai/limiter';
 
 export interface ReferenceSummary {
   fileName: string;
@@ -33,10 +34,11 @@ export function estimateEvaluation(input: EstimateInput): EstimateResult {
   const tokensPerChar = 0.25; // aproximado
   const tokensPerFigure = 1000;
 
-  const sectionsToEvaluate = Math.min(input.document.sections.length, maxSections);
+  const merged = mergeTinySections(input.document.sections);
+  const sectionsToEvaluate = Math.min(merged.length, maxSections);
   const referencesCount = Math.min(input.references.length, 2);
 
-  const sectionTextChars = input.document.sections.slice(0, sectionsToEvaluate).reduce((sum: number, s: { text: string }) => sum + Math.min(s.text.length, maxCharsPerSection), 0);
+  const sectionTextChars = merged.slice(0, sectionsToEvaluate).reduce((sum: number, s: { text: string }) => sum + Math.min(s.text.length, maxCharsPerSection), 0);
   const referenceChars = input.references.slice(0, referencesCount).reduce((sum: number, r: { text: string }) => sum + Math.min(r.text.length, maxCharsPerReference), 0);
   const figureCount = Math.min(input.document.figures.length, maxFiguresPerSection * sectionsToEvaluate);
 
@@ -65,20 +67,23 @@ export async function orchestrate(
   const now = deps?.now || (() => new Date().toISOString());
   const newIdFn = deps?.newId || (() => 'rep-' + Math.random().toString(36).slice(2));
 
-  const limiter = input.limiter || { run: async <T>(t: () => Promise<T>) => t() };
+  const limiter: ConcurrencyLimiter = input.limiter ?? createConcurrencyLimiter(2);
 
   input.onProgress?.({ phase: 'map' });
   const documentMap = await buildDocumentMap(input.document, input.client);
 
-  input.onProgress?.({ phase: 'sections', sectionIndex: 0, sectionTotal: input.document.sections.length, sectionTitle: input.document.sections[0]?.title });
-  const evaluatedSections = await limiter.run(async () =>
-    evaluateSections({
+  const evaluatedSections = await evaluateSections(
+    {
       document: input.document,
       references: input.references,
       rubric: input.rubric,
       map: documentMap,
       limits: { maxSections: 20, maxSectionChars: 6000, maxReferenceChars: 10000, maxFiguresPerSection: 3 },
-    }, input.client)
+      onSectionProgress: ({ done, total, title }) =>
+        input.onProgress?.({ phase: 'sections', sectionIndex: done - 1, sectionTotal: total, sectionTitle: title }),
+    },
+    input.client,
+    limiter
   );
 
   input.onProgress?.({ phase: 'synthesis' });

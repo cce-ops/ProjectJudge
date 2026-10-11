@@ -49,4 +49,15 @@ describe('createGeminiClient', () => {
     expect(result).toEqual({ ok: true });
     expect(mockGenerateContent).toHaveBeenCalledTimes(2);
   });
+
+  it('aborta ante una respuesta que nunca llega', async () => {
+    const hanging = vi.fn().mockImplementation(() => new Promise(() => {}));
+    const client = createGeminiClient({
+      generateContent: hanging,
+      maxRetries: 0,
+      timeoutMs: 50,
+    });
+    await expect(client.generateJson({ prompt: 'x', schema: {} })).rejects.toThrow(/espera agotado/i);
+    expect(hanging).toHaveBeenCalledTimes(1);
+  });
 });

@@ -11,6 +11,7 @@ export interface GeminiDeps {
   maxRetries?: number;
   baseDelayMs?: number;
   model?: string;
+  timeoutMs?: number;
 }
 
 export interface JsonClient {
@@ -23,19 +24,24 @@ export function createGeminiClient(deps: GeminiDeps): JsonClient {
       const retries = deps.maxRetries ?? 4;
       const delay = deps.baseDelayMs ?? 2000;
       const model = deps.model ?? 'gemini-3.8-flash';
+      const timeoutMs = deps.timeoutMs ?? 180000;
       const sleep = deps.sleep || ((ms: number) => new Promise(r => setTimeout(r, ms)));
 
       let lastError: any = null;
       for (let i = 0; i <= retries; i++) {
         try {
-          const response = await deps.generateContent({
-            model,
-            contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: request.schema,
-            },
-          });
+          const response = await withTimeout(
+            deps.generateContent({
+              model,
+              contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
+              config: {
+                responseMimeType: 'application/json',
+                responseSchema: request.schema,
+              },
+            }),
+            timeoutMs,
+            () => new Error('UNAVAILABLE: tiempo de espera agotado en la IA')
+          );
           if (!response.text) throw new Error('Respuesta vacía');
           try {
             return JSON.parse(response.text) as never;
@@ -56,4 +62,22 @@ export function createGeminiClient(deps: GeminiDeps): JsonClient {
       throw lastError || new Error('Fallo tras reintentos');
     },
   };
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, makeError: () => Error): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(makeError()), ms);
+  });
+  const guarded = promise.then(
+    (value) => {
+      clearTimeout(timer);
+      return value;
+    },
+    (error) => {
+      clearTimeout(timer);
+      throw error;
+    }
+  );
+  return Promise.race([guarded, timeout]);
 }

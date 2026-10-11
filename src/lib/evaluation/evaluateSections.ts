@@ -1,33 +1,125 @@
-import type { ExtractedDocument } from '../../types/extract';
+import type { ExtractedDocument, Section } from '../../types/extract';
 import type { SectionEvaluation, DocumentMap } from '../../types/evaluation';
-import type { RubricModel } from '../../types/rubric';
+import type { RubricModel, RubricCriterion } from '../../types/rubric';
 import type { JsonClient } from '../ai/gemini';
+import { createConcurrencyLimiter, type ConcurrencyLimiter } from '../ai/limiter';
+
+export interface SectionProgress {
+  done: number;
+  total: number;
+  title: string;
+}
 
 interface SectionsInput {
   document: ExtractedDocument;
   references: { fileName: string; format: string; text: string; stats: { words: number; figuresUsed: number; figuresDiscarded: number } }[];
   rubric: RubricModel;
   map?: DocumentMap;
-  limits?: { maxSections?: number; maxSectionChars?: number; maxReferenceChars?: number; maxFiguresPerSection?: number };
+  limits?: { maxSections?: number; maxSectionChars?: number; maxReferenceChars?: number; maxFiguresPerSection?: number; minSectionChars?: number };
+  onSectionProgress?: (progress: SectionProgress) => void;
+}
+
+const MAX_CONSECUTIVE_FAILURES = 3;
+
+/**
+ * Fusiona con la sección anterior las secciones con muy poco texto.
+ * Los detectores de encabezados a veces trocean el documento en decenas de
+ * fragmentos (una línea numerada, un rótulo en mayúsculas…); cada fragmento
+ * costaría una llamada a la IA. Al fusionarlos se conserva el contenido y se
+ * reduce el número de llamadas sin perder información.
+ */
+export function mergeTinySections(sections: Section[], minChars = 300): Section[] {
+  const kept: Section[] = [];
+  for (const section of sections) {
+    const figureIds = section.figureIds ?? [];
+    const last = kept[kept.length - 1];
+    if (last && section.text.trim().length < minChars) {
+      last.text += `\n\n## ${section.title}\n${section.text}`;
+      last.pageEnd = section.pageEnd ?? last.pageEnd;
+      last.figureIds = [...(last.figureIds ?? []), ...figureIds];
+    } else {
+      kept.push({ ...section, figureIds: [...figureIds] });
+    }
+  }
+  return kept;
+}
+
+function notEvaluated(
+  section: Section,
+  map: DocumentMap | undefined,
+  rubric: RubricModel,
+  error: string,
+  withCriteria: boolean
+): SectionEvaluation {
+  return {
+    sectionId: section.id,
+    title: section.title,
+    slotId: map?.slots?.find((s: { sectionId: string | null }) => s.sectionId === section.id)?.slot?.id || null,
+    criteria: withCriteria
+      ? rubric.criteria.map((c: RubricCriterion) => ({
+          criterionId: c.id,
+          score: 0,
+          maxScore: c.maxScore,
+          evidence: '',
+          feedback: 'No evaluado por error.',
+        }))
+      : [],
+    strengths: [],
+    improvements: [],
+    figureNotes: [],
+    evaluated: false,
+    error,
+  };
 }
 
 export async function evaluateSections(
   input: SectionsInput,
-  client: JsonClient
+  client: JsonClient,
+  limiter?: ConcurrencyLimiter
 ): Promise<SectionEvaluation[]> {
   const maxSections = input.limits?.maxSections ?? 20;
   const maxChars = input.limits?.maxSectionChars ?? 6000;
-  const results: SectionEvaluation[] = [];
+  const minChars = input.limits?.minSectionChars ?? 300;
 
-  const sectionsToEvaluate = input.document.sections.slice(0, maxSections);
+  const merged = mergeTinySections(input.document.sections, minChars);
+  const sectionsToEvaluate = merged.slice(0, maxSections);
+  const total = sectionsToEvaluate.length;
+  const results: SectionEvaluation[] = new Array(total);
 
-  for (const section of sectionsToEvaluate) {
+  const run = limiter
+    ? <T,>(task: () => Promise<T>): Promise<T> => limiter.run(task)
+    : createConcurrencyLimiter(1).run;
+
+  let done = 0;
+  let consecutiveFailures = 0;
+  let aborted = false;
+
+  const report = (section: Section, position: number): void => {
+    done += 1;
+    input.onSectionProgress?.({
+      done,
+      total,
+      title: section.title || `Sección ${position + 1}`,
+    });
+  };
+
+  const evaluateOne = async (section: Section, position: number): Promise<SectionEvaluation> => {
+    if (aborted) {
+      const result = notEvaluated(
+        section,
+        input.map,
+        input.rubric,
+        'Evaluación interrumpida: la IA falló repetidamente (posible cuota agotada). Inténtalo más tarde.',
+        false
+      );
+      report(section, position);
+      return result;
+    }
     try {
       const truncatedText = section.text.length > maxChars ? section.text.slice(0, maxChars) + '[…]' : section.text;
-      const relevantCriteria = input.rubric.criteria.slice(0, 4);
 
       const payload = {
-        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${relevantCriteria.map((c: { name: string; maxScore: number }) => `- ${c.name} (0-${c.maxScore})`).join('\n')}\nTexto de la sección (recortado si es largo):\n${truncatedText}`,
+        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${input.rubric.criteria.map((c: RubricCriterion) => `- ${c.name} (0-${c.maxScore})`).join('\n')}\nTexto de la sección (recortado si es largo):\n${truncatedText}`,
         schema: {
           type: 'object',
           properties: {
@@ -67,7 +159,8 @@ export async function evaluateSections(
         feedback: c.feedback || '',
       }));
 
-      results.push({
+      consecutiveFailures = 0;
+      const result: SectionEvaluation = {
         sectionId: section.id,
         title: section.title,
         slotId: input.map?.slots?.find((s: { sectionId: string | null }) => s.sectionId === section.id)?.slot?.id || null,
@@ -76,38 +169,37 @@ export async function evaluateSections(
         improvements: data.improvements || [],
         figureNotes: data.figureNotes || [],
         evaluated: true,
-      });
+      };
+      report(section, position);
+      return result;
     } catch (e: any) {
-      results.push({
-        sectionId: section.id,
-        title: section.title,
-        slotId: input.map?.slots?.find((s: { sectionId: string | null }) => s.sectionId === section.id)?.slot?.id || null,
-        criteria: input.rubric.criteria.map((c: { id: string; maxScore: number }) => ({ criterionId: c.id, score: 0, maxScore: c.maxScore, evidence: '', feedback: 'No evaluado por error.' })),
-        strengths: [],
-        improvements: [],
-        figureNotes: [],
-        evaluated: false,
-        error: e.message || 'Error al evaluar la sección',
-      });
+      consecutiveFailures += 1;
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        aborted = true;
+      }
+      const result = notEvaluated(
+        section,
+        input.map,
+        input.rubric,
+        e.message || 'Error al evaluar la sección',
+        true
+      );
+      report(section, position);
+      return result;
     }
-  }
+  };
 
-  // Si hay más secciones que el límite, marcar las restantes
-  if (input.document.sections.length > maxSections) {
-    const remaining = input.document.sections.slice(maxSections);
-    for (const section of remaining) {
-      results.push({
-        sectionId: section.id,
-        title: section.title,
-        slotId: input.map?.slots?.find((s: { sectionId: string | null }) => s.sectionId === section.id)?.slot?.id || null,
-        criteria: [],
-        strengths: [],
-        improvements: [],
-        figureNotes: [],
-        evaluated: false,
-        error: 'No evaluada: excede el límite de secciones.',
-      });
-    }
+  await Promise.all(
+    sectionsToEvaluate.map((section, index) =>
+      run(() => evaluateOne(section, index)).then((result) => {
+        results[index] = result;
+      })
+    )
+  );
+
+  // Secciones más allá del límite: se listan como no evaluadas.
+  for (const section of merged.slice(maxSections)) {
+    results.push(notEvaluated(section, input.map, input.rubric, 'No evaluada: excede el límite de secciones.', false));
   }
 
   return results;
