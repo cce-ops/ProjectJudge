@@ -57,6 +57,7 @@ export interface OrchestrateInput {
   client: JsonClient;
   model?: string;
   limiter?: { run: <T>(task: () => Promise<T>) => Promise<T> };
+  shouldAbort?: () => boolean;
   onProgress?: (progress: { phase: 'map' | 'sections' | 'synthesis'; sectionIndex?: number; sectionTotal?: number; sectionTitle?: string }) => void;
 }
 
@@ -69,6 +70,9 @@ export async function orchestrate(
 
   const limiter: ConcurrencyLimiter = input.limiter ?? createConcurrencyLimiter(2);
 
+  if (input.shouldAbort?.()) {
+    throw new Error('Evaluación cancelada por el usuario.');
+  }
   input.onProgress?.({ phase: 'map' });
   const documentMap = await buildDocumentMap(input.document, input.client);
 
@@ -79,6 +83,7 @@ export async function orchestrate(
       rubric: input.rubric,
       map: documentMap,
       limits: { maxSections: 20, maxSectionChars: 6000, maxReferenceChars: 10000, maxFiguresPerSection: 3 },
+      shouldAbort: input.shouldAbort,
       onSectionProgress: ({ done, total, title }) =>
         input.onProgress?.({ phase: 'sections', sectionIndex: done - 1, sectionTotal: total, sectionTitle: title }),
     },
@@ -86,6 +91,9 @@ export async function orchestrate(
     limiter
   );
 
+  if (input.shouldAbort?.()) {
+    throw new Error('Evaluación cancelada por el usuario.');
+  }
   input.onProgress?.({ phase: 'synthesis' });
   const synthesis = await synthesize({
     map: documentMap,

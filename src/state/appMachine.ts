@@ -38,7 +38,8 @@ export type AppAction =
   | { type: 'evaluation/failed'; error: string }
   | { type: 'evaluation/reset' }
   | { type: 'settings/updated'; settings: Settings }
-  | { type: 'error/dismissed' };
+  | { type: 'error/dismissed' }
+  | { type: 'notice/shown'; error: string };
 
 export function initialState(settings?: Settings): AppState {
   return {
@@ -93,6 +94,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, settings: action.settings };
     case 'error/dismissed':
       return { ...state, error: null };
+    case 'notice/shown':
+      return { ...state, error: action.error };
     default:
       return state;
   }

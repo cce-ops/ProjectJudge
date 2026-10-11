@@ -188,6 +188,31 @@ describe('evaluateSections', () => {
     expect(mergeTinySections(sections)).toHaveLength(2);
   });
 
+  it('deja de llamar a la IA cuando se cancela', async () => {
+    let calls = 0;
+    const mockClient = {
+      generateJson: vi.fn().mockImplementation(async () => {
+        calls++;
+        return okResponse('s');
+      }),
+    } as any;
+    const document = docWithSections([
+      { id: 's1', title: 'Uno', text: longText('uno') },
+      { id: 's2', title: 'Dos', text: longText('dos') },
+      { id: 's3', title: 'Tres', text: longText('tres') },
+    ]);
+    const rubric = { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any;
+    const result = await evaluateSections(
+      { document, references: [], rubric, shouldAbort: () => calls >= 1 },
+      mockClient
+    );
+    expect(calls).toBe(1);
+    expect(result[0].evaluated).toBe(true);
+    expect(result[1].evaluated).toBe(false);
+    expect(result[1].error).toMatch(/cancelada/i);
+    expect(result[2].error).toMatch(/cancelada/i);
+  });
+
   it('conserva las secciones diminutas que tienen titulo propio', () => {
     const sections = [
       { id: 'a', title: 'Introducción', level: 1, text: longText('a'), figureIds: [] as string[] },

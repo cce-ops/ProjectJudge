@@ -73,6 +73,7 @@ export function useEvaluation({ dispatch, settings, clientFactory }: UseEvaluati
         client,
         model: settings.model,
         limiter,
+        shouldAbort: () => cancelledRef.current,
         onProgress: (progress: { phase: 'map' | 'sections' | 'synthesis'; sectionIndex?: number; sectionTotal?: number; sectionTitle?: string }) =>
           dispatch({ type: 'evaluation/progress', progress }),
       });

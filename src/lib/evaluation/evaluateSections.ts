@@ -17,6 +17,7 @@ interface SectionsInput {
   map?: DocumentMap;
   limits?: { maxSections?: number; maxSectionChars?: number; maxReferenceChars?: number; maxFiguresPerSection?: number; minSectionChars?: number };
   onSectionProgress?: (progress: SectionProgress) => void;
+  shouldAbort?: () => boolean;
 }
 
 const MAX_CONSECUTIVE_FAILURES = 3;
@@ -112,6 +113,17 @@ export async function evaluateSections(
   };
 
   const evaluateOne = async (section: Section, position: number): Promise<SectionEvaluation> => {
+    if (input.shouldAbort?.()) {
+      const result = notEvaluated(
+        section,
+        input.map,
+        input.rubric,
+        'Evaluación cancelada por el usuario.',
+        false
+      );
+      report(section, position);
+      return result;
+    }
     if (aborted) {
       const result = notEvaluated(
         section,

@@ -146,14 +146,18 @@ export default function App() {
               onDownloadWord={() => {
                 const report = state.report;
                 if (!report) return;
-                void toDocx(report).then((blob) => {
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${report.document.fileName.replace(/\.[^.]+$/, '')}-evaluacion.docx`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                });
+                void toDocx(report)
+                  .then((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${report.document.fileName.replace(/\.[^.]+$/, '')}-evaluacion.docx`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  })
+                  .catch(() => {
+                    dispatch({ type: 'notice/shown', error: 'No se pudo generar el documento Word.' });
+                  });
               }}
             />
           )}

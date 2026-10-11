@@ -107,4 +107,14 @@ describe('appReducer', () => {
     const s2 = appReducer(s1, { type: 'references/removed', fileName: 'a.pdf' });
     expect(s2.references).toEqual([]);
   });
+
+  it('notice/shown fija un aviso sin cambiar de paso', () => {
+    const s1 = appReducer(initialState(), { type: 'rubric/parsed', rubric: sampleRubric() });
+    const s2 = appReducer(
+      { ...s1, step: 'results' as const },
+      { type: 'notice/shown', error: 'No se pudo generar el Word.' }
+    );
+    expect(s2.error).toBe('No se pudo generar el Word.');
+    expect(s2.step).toBe('results');
+  });
 });
