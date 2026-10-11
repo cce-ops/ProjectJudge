@@ -1,4 +1,4 @@
-import type { Figure, FigureCandidate } from '../types/extract';
+import type { Figure, FigureCandidate } from '../../types/extract';
 
 export type CanvasFactory = (width: number, height: number) => {
   canvas: HTMLCanvasElement;

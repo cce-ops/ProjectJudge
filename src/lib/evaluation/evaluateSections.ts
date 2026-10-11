@@ -1,12 +1,13 @@
-import type { ExtractedDocument, SectionEvaluation, DocumentMap, TemplateSlot } from '../types/evaluation';
-import type { RubricModel } from '../types/rubric';
+import type { ExtractedDocument } from '../../types/extract';
+import type { SectionEvaluation, DocumentMap, TemplateSlot } from '../../types/evaluation';
+import type { RubricModel } from '../../types/rubric';
 import type { JsonClient } from '../ai/gemini';
 
 interface SectionsInput {
   document: ExtractedDocument;
-  references: { fileName: string; format: string; text: string; stats: any }[];
+  references: { fileName: string; format: string; text: string; stats: { words: number; figuresUsed: number; figuresDiscarded: number } }[];
   rubric: RubricModel;
-  map: DocumentMap;
+  map?: DocumentMap;
   limits?: { maxSections?: number; maxSectionChars?: number; maxReferenceChars?: number; maxFiguresPerSection?: number };
 }
 
@@ -27,7 +28,7 @@ export async function evaluateSections(
       const relevantCriteria = input.rubric.criteria.slice(0, 4);
 
       const payload = {
-        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${relevantCriteria.map(c => `- ${c.name} (0-${c.maxScore})`).join('\n')}\nTexto de la sección (recortado si es largo):\n${truncatedText}`,
+        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${relevantCriteria.map((c: { name: string; maxScore: number }) => `- ${c.name} (0-${c.maxScore})`).join('\n')}\nTexto de la sección (recortado si es largo):\n${truncatedText}`,
         schema: {
           type: 'object',
           properties: {
@@ -70,7 +71,7 @@ export async function evaluateSections(
       results.push({
         sectionId: section.id,
         title: section.title,
-        slotId: input.map?.slots?.find(s => s.sectionId === section.id)?.slot?.id || null,
+        slotId: input.map?.slots?.find((s: { sectionId: string | null }) => s.sectionId === section.id)?.slot?.id || null,
         criteria: criteriaResults,
         strengths: data.strengths || [],
         improvements: data.improvements || [],
@@ -81,8 +82,8 @@ export async function evaluateSections(
       results.push({
         sectionId: section.id,
         title: section.title,
-        slotId: input.map?.slots?.find(s => s.sectionId === section.id)?.slot?.id || null,
-        criteria: input.rubric.criteria.map(c => ({ criterionId: c.id, score: 0, maxScore: c.maxScore, evidence: '', feedback: 'No evaluado por error.' })),
+        slotId: input.map?.slots?.find((s: { sectionId: string | null }) => s.sectionId === section.id)?.slot?.id || null,
+        criteria: input.rubric.criteria.map((c: { id: string; maxScore: number }) => ({ criterionId: c.id, score: 0, maxScore: c.maxScore, evidence: '', feedback: 'No evaluado por error.' })),
         strengths: [],
         improvements: [],
         figureNotes: [],
@@ -99,7 +100,7 @@ export async function evaluateSections(
       results.push({
         sectionId: section.id,
         title: section.title,
-        slotId: input.map?.slots?.find(s => s.sectionId === section.id)?.slot?.id || null,
+        slotId: input.map?.slots?.find((s: { sectionId: string | null }) => s.sectionId === section.id)?.slot?.id || null,
         criteria: [],
         strengths: [],
         improvements: [],

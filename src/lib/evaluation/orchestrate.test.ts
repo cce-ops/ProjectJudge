@@ -37,7 +37,7 @@ describe('orchestrate', () => {
         figures: [], warnings: [], stats: { pages: 1, words: 2, figuresUsed: 0, figuresDiscarded: 0 },
       },
       references: [],
-      rubric: { criteria: [{ id: 'c1', name: 'Contenido', maxScore: 10, levels: [{ label: 'L', descriptor: '', score: 10 }] }], scale: { min: 0, max: 10 }, source: 'Manual', fingerprint: 'fp' },
+      rubric: { criteria: [{ id: 'c1', name: 'Contenido', description: '', maxScore: 10, levels: [{ label: 'L', descriptor: '', score: 10 }] }], scale: { min: 0, max: 10 }, source: 'Manual', fingerprint: 'fp' },
       client: mockClient(),
       limiter: { run: async <T>(t: () => Promise<T>) => t() } as any,
     });

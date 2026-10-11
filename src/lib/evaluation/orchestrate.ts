@@ -1,14 +1,22 @@
-import { createConcurrencyLimiter } from './ai/limiter';
-import type { ExtractedDocument, DocumentMap, SectionEvaluation, ReportView, Synthesis } from '../types/evaluation';
+import { createConcurrencyLimiter } from '../ai/limiter';
+import type { ExtractedDocument } from '../../types/extract';
+import type { DocumentMap, SectionEvaluation, ReportView, Synthesis } from '../../types/evaluation';
 import { buildDocumentMap } from './buildDocumentMap';
 import { evaluateSections } from './evaluateSections';
 import { synthesize } from './synthesize';
-import type { RubricModel } from '../types/rubric';
+import type { RubricModel } from '../../types/rubric';
 import type { JsonClient } from '../ai/gemini';
+
+export interface ReferenceSummary {
+  fileName: string;
+  format: string;
+  text: string;
+  stats: { words: number; figuresUsed: number; figuresDiscarded: number };
+}
 
 export interface EstimateInput {
   document: ExtractedDocument;
-  references: { fileName: string; format: string; text: string; stats: any }[];
+  references: ReferenceSummary[];
   maxSections?: number;
 }
 
@@ -29,13 +37,13 @@ export function estimateEvaluation(input: EstimateInput): EstimateResult {
   const sectionsToEvaluate = Math.min(input.document.sections.length, maxSections);
   const referencesCount = Math.min(input.references.length, 2);
 
-  const sectionTextChars = input.document.sections.slice(0, sectionsToEvaluate).reduce((sum, s) => sum + Math.min(s.text.length, maxCharsPerSection), 0);
-  const referenceChars = input.references.slice(0, referencesCount).reduce((sum, r) => sum + Math.min(r.text.length, maxCharsPerReference), 0);
+  const sectionTextChars = input.document.sections.slice(0, sectionsToEvaluate).reduce((sum: number, s: { text: string }) => sum + Math.min(s.text.length, maxCharsPerSection), 0);
+  const referenceChars = input.references.slice(0, referencesCount).reduce((sum: number, r: { text: string }) => sum + Math.min(r.text.length, maxCharsPerReference), 0);
   const figureCount = Math.min(input.document.figures.length, maxFiguresPerSection * sectionsToEvaluate);
 
   const totalChars = sectionTextChars + referenceChars;
   const tokens = Math.round(totalChars * tokensPerChar + figureCount * tokensPerFigure);
-  const truncated = input.document.sections.length > maxSections || sectionTextChars < input.document.sections.reduce((sum, s) => sum + s.text.length, 0);
+  const truncated = input.document.sections.length > maxSections || sectionTextChars < input.document.sections.reduce((sum: number, s: { text: string }) => sum + s.text.length, 0);
   const calls = 1 + sectionsToEvaluate + 1; // mapa + secciones + síntesis
 
   return { calls, tokens, truncated };
@@ -43,7 +51,7 @@ export function estimateEvaluation(input: EstimateInput): EstimateResult {
 
 export interface OrchestrateInput {
   document: ExtractedDocument;
-  references: { fileName: string; format: string; text: string; stats: any }[];
+  references: ReferenceSummary[];
   rubric: RubricModel;
   client: JsonClient;
   limiter?: { run: <T>(task: () => Promise<T>) => Promise<T> };

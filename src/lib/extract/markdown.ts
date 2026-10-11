@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import type { Section, Figure } from '../types/extract';
+import type { Section, Figure } from '../../types/extract';
 
 export function markdownToModel(markdown: string): { sections: Section[]; figures: Figure[]; warnings: string[] } {
   const tokens = marked.lexer(markdown);
@@ -21,6 +21,10 @@ export function markdownToModel(markdown: string): { sections: Section[]; figure
       sections.push(currentSection);
     } else if (token.type === 'paragraph' && currentSection) {
       currentSection.text += (currentSection.text ? '\n' : '') + token.text;
+      const raw = (token as unknown as { raw?: string }).raw ?? '';
+      if (raw.includes('![') && !warnings.includes('Las imágenes externas por URL no se incluyen en la evaluación.')) {
+        warnings.push('Las imágenes externas por URL no se incluyen en la evaluación.');
+      }
     } else if ((token as any).type === 'image' || ((token as any).raw && (token as any).raw.includes('!['))) {
       warnings.push('Las imágenes externas por URL no se incluyen en la evaluación.');
     }

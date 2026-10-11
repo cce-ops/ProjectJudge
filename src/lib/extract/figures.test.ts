@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { selectFigures, reencodeFigure } from './figures';
-import type { FigureCandidate, Figure } from '../types/extract';
+import type { FigureCandidate, Figure } from '../../types/extract';
 
 describe('selectFigures', () => {
   const mockCandidates: FigureCandidate[] = [

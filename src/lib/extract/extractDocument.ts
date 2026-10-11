@@ -1,4 +1,4 @@
-import type { ExtractedDocument } from '../types/extract';
+import type { ExtractedDocument } from '../../types/extract';
 import { markdownToModel } from './markdown';
 import { pdfPagesToModel } from './pdfModel';
 import { documentXmlToModel } from './docxModel';

@@ -1,5 +1,5 @@
-import type { RubricModel } from '../types/rubric';
-import type { JsonClient } from '../types/evaluation';
+import type { RubricModel } from '../../types/rubric';
+import type { JsonClient } from '../ai/gemini';
 
 function fingerprint(text: string): string {
   return text.slice(0, 20).trim();

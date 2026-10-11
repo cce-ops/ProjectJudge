@@ -6,7 +6,10 @@ describe('extractPdf', () => {
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('extracts text and sections from a PDF file', async () => {
-    const mockFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
+    const mockFile = {
+      name: 'test.pdf',
+      arrayBuffer: async () => new ArrayBuffer(8),
+    } as unknown as File;
     
     const mockGetDocument = vi.fn().mockResolvedValue({
       numPages: 2,
@@ -26,7 +29,10 @@ describe('extractPdf', () => {
   });
 
   it('warns when PDF has no extractable text', async () => {
-    const mockFile = new File(['empty'], 'empty.pdf', { type: 'application/pdf' });
+    const mockFile = {
+      name: 'empty.pdf',
+      arrayBuffer: async () => new ArrayBuffer(8),
+    } as unknown as File;
     const mockGetDocument = vi.fn().mockResolvedValue({
       numPages: 1,
       getPage: vi.fn().mockResolvedValue({
@@ -38,6 +44,6 @@ describe('extractPdf', () => {
     });
 
     const result = await extractPdf(mockFile, { getDocument: mockGetDocument });
-    expect(result.warnings.some(w => w.toLowerCase().includes('texto'))).toBe(true);
+    expect(result.warnings.some((w: string) => w.toLowerCase().includes('texto'))).toBe(true);
   });
 });

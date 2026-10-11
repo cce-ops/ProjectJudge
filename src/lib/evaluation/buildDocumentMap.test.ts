@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildDocumentMap } from './buildDocumentMap';
-import type { ExtractedDocument } from '../types/extract';
+import type { ExtractedDocument } from '../../types/extract';
 
 function mockClient(response: any) {
   return {
@@ -41,7 +41,7 @@ describe('buildDocumentMap', () => {
       ],
       summary: 'Resumen.',
     }));
-    const planSlot = result.slots.find(s => s.slot.id === 'planificacion');
+    const planSlot = result.slots.find((s: { slot: { id: string } }) => s.slot.id === 'planificacion');
     expect(planSlot?.present).toBe(false);
   });
 });

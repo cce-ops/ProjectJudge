@@ -16,8 +16,8 @@ export interface Section {
   figureIds: string[] 
 }
 export interface ExtractedDocument {
-  fileName: string; 
-  format: 'pdf' | 'docx' | 'md';
+  fileName: string;
+  format: 'pdf' | 'docx' | 'md' | 'txt';
   text: string; 
   sections: Section[]; 
   figures: Figure[];

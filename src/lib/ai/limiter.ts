@@ -7,7 +7,7 @@ export function createConcurrencyLimiter(max: number): ConcurrencyLimiter {
   const queue: (() => void)[] = [];
 
   return {
-    run: (task) => {
+    run: <T,>(task: () => Promise<T>): Promise<T> => {
       return new Promise<T>((resolve, reject) => {
         const tryRun = () => {
           if (active < max) {

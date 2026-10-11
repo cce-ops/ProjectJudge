@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseRubric } from './parseRubric';
-import type { JsonClient, RubricModel } from '../types/rubric';
+import type { RubricModel } from '../../types/rubric';
+import type { JsonClient } from '../ai/gemini';
 
 describe('parseRubric', () => {
   it('normalizes criteria from AI response', async () => {

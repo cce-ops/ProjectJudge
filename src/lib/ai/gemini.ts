@@ -35,7 +35,11 @@ export function createGeminiClient(deps: GeminiDeps): JsonClient {
             },
           });
           if (!response.text) throw new Error('Respuesta vacía');
-          return JSON.parse(response.text) as any;
+          try {
+            return JSON.parse(response.text) as never;
+          } catch {
+            throw new Error('UNAVAILABLE: la IA devolvió un JSON inválido');
+          }
         } catch (e: any) {
           const msg = e?.message || '';
           const isTransient = msg.includes('503') || msg.includes('429') || msg.includes('UNAVAILABLE') || msg.includes('high demand');

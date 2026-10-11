@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import JSZip from 'jszip';
 import { extractDocument, isSupportedFile } from './extractDocument';
 
 describe('isSupportedFile', () => {
@@ -26,12 +27,23 @@ describe('extractDocument', () => {
   });
 
   it('extracts docx document', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'word/document.xml',
+      `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` +
+        `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Objetivos</w:t></w:r></w:p>` +
+        `<w:p><w:r><w:t>Texto del objetivo.</w:t></w:r></w:p>` +
+        `</w:body></w:document>`
+    );
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
     const file = {
       name: 'test.docx',
-      arrayBuffer: async () => new ArrayBuffer(8),
+      arrayBuffer: async () => buffer,
     } as unknown as File;
     const result = await extractDocument(file);
     expect(result.format).toBe('docx');
+    expect(result.sections.length).toBeGreaterThan(0);
+    expect(result.sections[0].title).toContain('Objetivos');
   });
 
   it('throws for unsupported file', async () => {

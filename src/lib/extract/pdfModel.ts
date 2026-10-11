@@ -1,4 +1,4 @@
-import type { Section, FigureCandidate } from '../types/extract';
+import type { Section, FigureCandidate } from '../../types/extract';
 
 export interface PdfPageDump {
   pageNumber: number;
@@ -34,6 +34,7 @@ export function pdfPagesToModel(
 
   for (const page of pages) {
     for (const line of page.lines) {
+      if (!line.trim()) continue;
       hasText = true;
       if (looksLikeHeading(line, keywords)) {
         currentSection = {

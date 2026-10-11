@@ -35,12 +35,22 @@ export const SECTION_KEYWORDS: string[] = [
   'anexos', 'apéndices',
 ];
 
+function fold(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export function findSlotByKeywords(title: string): TemplateSlot | null {
-  const lowerTitle = title.toLowerCase();
+  const foldedTitle = fold(title);
   for (const slot of ENGINEERING_SECTIONS) {
-    const keywords = [slot.id, slot.label.toLowerCase(), ...slot.description.toLowerCase().split(/[,\s]+/)].filter(Boolean);
+    const keywords = [slot.id, slot.label.toLowerCase(), ...slot.description.toLowerCase().split(/[,\s]+/)]
+      .filter(Boolean)
+      .map(fold)
+      .filter((kw) => kw.length >= 4);
     for (const kw of keywords) {
-      if (lowerTitle.includes(kw)) return slot;
+      if (foldedTitle.includes(kw)) return slot;
     }
   }
   return null;

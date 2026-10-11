@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { evaluateSections } from './evaluateSections';
-import type { ExtractedDocument, SectionEvaluation } from '../types/evaluation';
+import type { ExtractedDocument } from '../../types/extract';
+import type { SectionEvaluation } from '../../types/evaluation';
 
 describe('evaluateSections', () => {
   it('evaluates each section against criteria', async () => {

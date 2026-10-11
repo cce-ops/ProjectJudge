@@ -1,4 +1,4 @@
-import type { Section, FigureCandidate } from '../types/extract';
+import type { Section, FigureCandidate } from '../../types/extract';
 
 function getTextContent(el: Element | null): string {
   if (!el) return '';
@@ -22,8 +22,9 @@ export function documentXmlToModel(
 
   for (let i = 0; i < paragraphs.length; i++) {
     const p = paragraphs[i];
-    const pPr = p.getElementsByTagName('w:pPr')?.[0] || p.getElementsByTagName('pPr')?.[0];
-    const pStyle = pPr?.getElementsByTagName('w:pStyle')?.[0] || pPr?.getElementsByTagName('pStyle')?.[0];
+    // El estilo de párrafo vive en w:pPr en documentos reales, pero se busca
+    // en todo el párrafo para tolerar XML atípicos.
+    const pStyle = p.getElementsByTagName('w:pStyle')?.[0] || p.getElementsByTagName('pStyle')?.[0];
     const val = (pStyle?.getAttribute('w:val') || pStyle?.getAttribute('val')) || '';
     const isHeading = val.toLowerCase().startsWith('heading');
 
