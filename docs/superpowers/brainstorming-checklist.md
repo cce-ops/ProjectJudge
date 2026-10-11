@@ -33,4 +33,6 @@ Inspiración (solo lectura): https://github.com/cce087/evaluador-presentaciones-
 - [x] 7. Autorevisión de la spec (sin placeholders; presupuesto coherente entre §6 y §9; se resolvió
       la ambigüedad del origen del texto de la rúbrica en §8; ámbito acotado a un solo plan)
 - [x] 8. Revisión de la spec por el usuario — **aprobada** (2026-10-11)
-- [ ] 9. Pasar a `writing-plans` (plan de implementación)
+- [x] 9. Pasar a `writing-plans` (plan de implementación) — plan escrito y commiteado en
+      `docs/superpowers/plans/2026-10-11-proyectjudge.md` (20 tareas, TDD)
+- [ ] 10. Revisión del plan por el usuario y elección del método de ejecución
