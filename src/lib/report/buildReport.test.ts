@@ -28,16 +28,22 @@ function sampleView(): ReportView {
         { slot: { id: 'planificacion', label: 'Planificación', description: '' }, present: false, sectionId: null },
       ],
       summary: 'Resumen del mapa.',
+      titles: [
+        { sectionId: 's1', title: 'Objetivos del estudio' },
+        { sectionId: 's2', title: 'Anexo sin evaluar' },
+      ],
     },
     sections: [
       {
         sectionId: 's1',
         title: 'Objetivos',
         slotId: 'objetivos',
-        criteria: [{ criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Cita literal', feedback: 'Bien.' }],
+        criteria: [
+          { criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Cita literal', feedback: 'Bien.', evaluable: true },
+        ],
         strengths: ['Claro'],
         improvements: ['Ampliar'],
-        figureNotes: [],
+        figureNotes: [{ figureId: 'fig-0', note: 'Figura 2: evolución horaria.' }],
         evaluated: true,
       },
       {
@@ -59,9 +65,13 @@ function sampleView(): ReportView {
       improvements: ['I'],
       coherenceNotes: ['Coherente.'],
       referenceComparison: 'Nivel medio.',
+      about: 'Informe sobre una comunidad energética con tres escenarios.',
+      nextSteps: ['Cuantificar el CAPEX.', 'Corregir la Tabla 2.'],
     },
   };
 }
+
+import { displayTitle, resultsForCriterion, formatFigureNote } from './buildReport';
 
 describe('buildReportBlocks', () => {
   it('genera cabecera, criterios, apartados y sintesis sin nota global', () => {
@@ -75,5 +85,61 @@ describe('buildReportBlocks', () => {
     expect(body).toContain('No evaluada');
     expect(body).not.toMatch(/nota global/i);
     expect(body).not.toMatch(/puntuaci.n global/i);
+  });
+
+  it('incluye la ficha del informe con presentacion y estructura', () => {
+    const blocks = buildReportBlocks(sampleView());
+    const head = blocks[0].paragraphs.join(' ');
+    expect(head).toContain('Manual');
+    expect(head).toContain('gemini-3.8-flash');
+    expect(head).toContain('comunidad energética');
+    expect(head).toContain('Objetivos del estudio');
+  });
+
+  it('incluye el bloque para subir de nivel', () => {
+    const blocks = buildReportBlocks(sampleView());
+    const steps = blocks.find((b) => b.heading === 'Para subir de nivel');
+    expect(steps?.paragraphs).toEqual(['Cuantificar el CAPEX.', 'Corregir la Tabla 2.']);
+  });
+
+  it('displayTitle prefiere el titulo del mapa', () => {
+    const view = sampleView();
+    expect(displayTitle(view, view.sections[0])).toBe('Objetivos del estudio');
+    expect(displayTitle(view, { ...view.sections[0], sectionId: 'desconocida', title: '' })).toBe('desconocida');
+  });
+
+  it('resultsForCriterion empareja por id o por nombre', () => {
+    const view = sampleView();
+    const byId = resultsForCriterion(view, view.rubric.criteria[0]);
+    expect(byId).toHaveLength(1);
+    const renamed = { ...view, sections: view.sections.map((s) => ({ ...s })) };
+    renamed.sections[0] = {
+      ...renamed.sections[0],
+      criteria: [{ ...renamed.sections[0].criteria[0], criterionId: 'Rigor tecnico' }],
+    };
+    expect(resultsForCriterion(renamed, view.rubric.criteria[0])).toHaveLength(1);
+  });
+
+  it('formatFigureNote no duplica la palabra Figura', () => {
+    expect(formatFigureNote('fig-0', 'Figura 2: evolución horaria.')).toBe('Figura 2: evolución horaria.');
+    expect(formatFigureNote('fig-0', 'Muestra la demanda.')).toBe('Figura fig-0: Muestra la demanda.');
+  });
+
+  it('marca los criterios sin evidencias y los no evaluables', () => {
+    const view = sampleView();
+    view.rubric.criteria.push({ id: 'c2', name: 'Exposición', description: '', maxScore: 10, levels: [] });
+    view.sections[0].criteria.push({
+      criterionId: 'c2',
+      score: 0,
+      maxScore: 10,
+      evidence: '',
+      feedback: '',
+      evaluable: false,
+      motivo: 'Requiere la defensa oral.',
+    });
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('No evaluable en este documento: Requiere la defensa oral.');
   });
 });

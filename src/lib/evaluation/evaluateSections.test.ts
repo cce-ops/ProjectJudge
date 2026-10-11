@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { evaluateSections, mergeTinySections } from './evaluateSections';
+import { evaluateSections, mergeTinySections, type SectionProgress } from './evaluateSections';
 import { createConcurrencyLimiter } from '../ai/limiter';
 import type { ExtractedDocument } from '../../types/extract';
 
@@ -83,7 +83,7 @@ describe('evaluateSections', () => {
       { id: 's2', title: 'Dos', text: longText('dos') },
       { id: 's3', title: 'Tres', text: longText('tres') },
     ]);
-    const seen: { done: number; total: number; title: string }[] = [];
+    const seen: SectionProgress[] = [];
     const rubric = { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any;
     await evaluateSections(
       { document, references: [], rubric, onSectionProgress: (p) => seen.push(p) },
@@ -94,20 +94,21 @@ describe('evaluateSections', () => {
     expect(seen.map((p) => p.title)).toEqual(['Uno', 'Dos', 'Tres']);
   });
 
-  it('fusiona las secciones diminutas con la anterior y conserva su texto', async () => {
+  it('conserva las secciones diminutas con titulo y absorbe los fragmentos sin titulo', async () => {
     const mockClient = { generateJson: vi.fn().mockImplementation(async () => okResponse('s')) } as any;
     const tiny = 'texto diminuto';
     const document = docWithSections([
       { id: 's1', title: 'Grande', text: longText('grande') },
       { id: 's2', title: 'Diminuta', text: tiny },
-      { id: 's3', title: 'Otra', text: longText('otra') },
+      { id: 's3', title: '', text: 'Rótulo suelto sin título.' },
+      { id: 's4', title: 'Otra', text: longText('otra') },
     ]);
     const rubric = { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any;
     const result = await evaluateSections({ document, references: [], rubric }, mockClient);
-    expect(mockClient.generateJson).toHaveBeenCalledTimes(2);
-    const firstPrompt = mockClient.generateJson.mock.calls[0][0].prompt as string;
-    expect(firstPrompt).toContain(tiny);
-    expect(result).toHaveLength(2);
+    expect(mockClient.generateJson).toHaveBeenCalledTimes(3);
+    const prompts = mockClient.generateJson.mock.calls.map((c: any[]) => c[0].prompt as string);
+    expect(prompts.some((p: string) => p.includes('Rótulo suelto sin título.'))).toBe(true);
+    expect(result).toHaveLength(3);
   });
 
   it('envia todos los criterios de la rubrica, no solo los cuatro primeros', async () => {
@@ -185,5 +186,78 @@ describe('evaluateSections', () => {
       { id: 'b', title: 'B', level: 1, text: longText('b'), figureIds: [] as string[] },
     ];
     expect(mergeTinySections(sections)).toHaveLength(2);
+  });
+
+  it('conserva las secciones diminutas que tienen titulo propio', () => {
+    const sections = [
+      { id: 'a', title: 'Introducción', level: 1, text: longText('a'), figureIds: [] as string[] },
+      { id: 'b', title: 'Objetivos', level: 1, text: 'Texto corto con título.', figureIds: [] as string[] },
+    ];
+    const merged = mergeTinySections(sections);
+    expect(merged).toHaveLength(2);
+    expect(merged[1].title).toBe('Objetivos');
+  });
+
+  it('absorbe los fragmentos diminutos sin titulo en la seccion anterior', () => {
+    const sections = [
+      { id: 'a', title: 'Grande', level: 1, text: longText('a'), figureIds: [] as string[] },
+      { id: 'b', title: '', level: 0, text: 'Rótulo suelto.', figureIds: [] as string[] },
+    ];
+    const merged = mergeTinySections(sections);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].text).toContain('Rótulo suelto.');
+  });
+
+  it('normaliza al identificador canonico cuando la IA devuelve el nombre', async () => {
+    const mockClient = {
+      generateJson: vi.fn().mockResolvedValue({
+        criteria: [
+          { criterionId: 'Rigor tecnico', score: 7, maxScore: 10, evidence: 'E', feedback: 'F', evaluable: true },
+        ],
+        strengths: [],
+        improvements: [],
+        figureNotes: [],
+      }),
+    } as any;
+    const document = docWithSections([{ id: 's1', title: 'Unica', text: longText('texto') }]);
+    const rubric = {
+      criteria: [{ id: 'c1', name: 'Rigor tecnico', description: '', maxScore: 10, levels: [] }],
+      scale: { min: 0, max: 10 },
+      source: '',
+      fingerprint: '',
+    } as any;
+    const result = await evaluateSections({ document, references: [], rubric }, mockClient);
+    expect(result[0].criteria[0].criterionId).toBe('c1');
+  });
+
+  it('registra los criterios no evaluables con su motivo', async () => {
+    const mockClient = {
+      generateJson: vi.fn().mockResolvedValue({
+        criteria: [
+          {
+            criterionId: 'c-oral',
+            score: 0,
+            maxScore: 10,
+            evidence: '',
+            feedback: '',
+            evaluable: false,
+            motivo: 'Requiere la exposición oral, no aportada.',
+          },
+        ],
+        strengths: [],
+        improvements: [],
+        figureNotes: [],
+      }),
+    } as any;
+    const document = docWithSections([{ id: 's1', title: 'Unica', text: longText('texto') }]);
+    const rubric = {
+      criteria: [{ id: 'c-oral', name: 'Exposición', description: '', maxScore: 10, levels: [] }],
+      scale: { min: 0, max: 10 },
+      source: '',
+      fingerprint: '',
+    } as any;
+    const result = await evaluateSections({ document, references: [], rubric }, mockClient);
+    expect(result[0].criteria[0].evaluable).toBe(false);
+    expect(result[0].criteria[0].motivo).toContain('exposición oral');
   });
 });

@@ -28,6 +28,25 @@ describe('buildDocumentMap', () => {
     expect(result.slots.length).toBeGreaterThan(0);
   });
 
+  it('usa los titulos propuestos por la IA y conserva los originales como reserva', async () => {
+    const doc: ExtractedDocument = {
+      fileName: 'informe.pdf', format: 'pdf', text: 'texto',
+      sections: [
+        { id: 's1', title: '', level: 1, text: '...', figureIds: [] },
+        { id: 's2', title: 'Objetivos del proyecto', level: 1, text: '...', figureIds: [] },
+      ],
+      figures: [], warnings: [], stats: { words: 10, figuresUsed: 0, figuresDiscarded: 0 },
+    };
+    const result = await buildDocumentMap(doc, mockClient({
+      slots: [],
+      summary: 'Resumen.',
+      titles: [{ sectionId: 's1', title: 'Introducción y contexto' }],
+    }));
+    expect(result.titles).toHaveLength(2);
+    expect(result.titles.find((t) => t.sectionId === 's1')?.title).toBe('Introducción y contexto');
+    expect(result.titles.find((t) => t.sectionId === 's2')?.title).toBe('Objetivos del proyecto');
+  });
+
   it('marks missing slots', async () => {
     const doc: ExtractedDocument = {
       fileName: 'x', format: 'md', text: '',

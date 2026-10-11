@@ -15,7 +15,9 @@ export async function buildDocumentMap(
   const prompt = `Analiza el informe y asigna cada sección a un apartado de ingeniería.
 Apartados disponibles: ${ENGINEERING_SECTIONS.map((s: TemplateSlot) => s.id).join(', ')}.
 Secciones del documento:
-${document.sections.map((s) => `- ${s.title}`).join('\n')}`;
+${document.sections.map((s) => `- [${s.id}] ${s.title || '(sin título)'}`).join('\n')}
+
+Devuelve también, para cada sección detectada, un título corto y descriptivo (máximo 60 caracteres). Si el título original ya es descriptivo, consérvalo; si está vacío o es un resto de paginación, propone uno a partir de su contenido.`;
 
   const schema = {
     type: 'object',
@@ -31,13 +33,30 @@ ${document.sections.map((s) => `- ${s.title}`).join('\n')}`;
         },
       },
       summary: { type: 'string' },
+      titles: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            sectionId: { type: 'string' }, title: { type: 'string' },
+          },
+          required: ['sectionId', 'title'],
+        },
+      },
     },
-    required: ['slots', 'summary'],
+    required: ['slots', 'summary', 'titles'],
   };
 
   const result = await client.generateJson({ prompt, schema, system: 'Eres un evaluador de proyectos de ingeniería.' });
 
   const slots = (result as any).slots || [];
+  const aiTitles = Array.isArray((result as any).titles) ? (result as any).titles : [];
+  const titles = document.sections.map((s) => {
+    const proposed = aiTitles.find(
+      (t: { sectionId: string; title: string }) => t.sectionId === s.id && typeof t.title === 'string' && t.title.trim()
+    );
+    return { sectionId: s.id, title: (proposed?.title ?? s.title).trim().slice(0, 60) || s.id };
+  });
   const mappedSlots = ENGINEERING_SECTIONS.map((slot: TemplateSlot) => {
     const found = (slots as Array<{ slotId: string; present: boolean; sectionId: string | null }>).find(
       (s) => s.slotId === slot.id
@@ -56,5 +75,6 @@ ${document.sections.map((s) => `- ${s.title}`).join('\n')}`;
   return {
     slots: mappedSlots,
     summary: (result as any).summary || 'Resumen no disponible.',
+    titles,
   };
 }

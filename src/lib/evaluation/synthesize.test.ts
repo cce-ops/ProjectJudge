@@ -61,4 +61,29 @@ describe('synthesize', () => {
       }, mockClient)
     ).rejects.toThrow('No hay secciones evaluadas');
   });
+
+  it('devuelve la presentacion del informe y los proximos pasos recortados a tres', async () => {
+    const mockClient = {
+      generateJson: vi.fn().mockResolvedValue({
+        overallAssessment: 'Correcto',
+        summary: 'Resumen.',
+        strengths: [],
+        improvements: [],
+        coherenceNotes: [],
+        referenceComparison: '',
+        about: 'Informe sobre una comunidad energética en Rubí con tres escenarios.',
+        nextSteps: ['Paso 1', 'Paso 2', 'Paso 3', 'Paso 4 sobrante'],
+      }),
+    } as any;
+
+    const result = await synthesize({
+      map: { slots: [], summary: '', titles: [] } as any,
+      sections: [{ sectionId: 's1', title: 'A', slotId: null, criteria: [], strengths: [], improvements: [], figureNotes: [], evaluated: true }] as any,
+      rubric: { criteria: [], scale: { min: 0, max: 10 }, source: '', fingerprint: '' } as any,
+      referenceLabels: [],
+    }, mockClient);
+
+    expect(result.about).toContain('comunidad energética');
+    expect(result.nextSteps).toEqual(['Paso 1', 'Paso 2', 'Paso 3']);
+  });
 });

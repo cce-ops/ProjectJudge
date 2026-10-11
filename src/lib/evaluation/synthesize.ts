@@ -44,6 +44,8 @@ Resumen del documento: ${input.map.summary}
 Instrucciones:
 - overallAssessment debe ser EXACTAMENTE una de: "Correcto", "Mejorable", "Insuficiente".
 - No incluyas ninguna nota numérica global; solo puntuaciones por criterio.
+- about: describe en 2-3 frases de qué trata el informe evaluado (tema, alcance y estructura), sin valorarlo.
+- nextSteps: como máximo 3 acciones concretas y priorizadas que permitan subir de nivel en la próxima entrega.
 - Escribe en español, 2-3 frases de resumen, fortalezas, mejoras, coherencia entre apartados y comparación con referencias.`;
 
   const schema = {
@@ -55,8 +57,10 @@ Instrucciones:
       improvements: { type: 'array', items: { type: 'string' } },
       coherenceNotes: { type: 'array', items: { type: 'string' } },
       referenceComparison: { type: 'string' },
+      about: { type: 'string' },
+      nextSteps: { type: 'array', items: { type: 'string' } },
     },
-    required: ['overallAssessment', 'summary', 'strengths', 'improvements', 'coherenceNotes', 'referenceComparison'],
+    required: ['overallAssessment', 'summary', 'strengths', 'improvements', 'coherenceNotes', 'referenceComparison', 'about', 'nextSteps'],
   };
 
   const result = await client.generateJson({ prompt, schema, system: 'Evaluador académico riguroso.' });
@@ -65,6 +69,10 @@ Instrucciones:
     throw new Error(`Valoración global no permitida: "${assessment}"`);
   }
 
+  const nextSteps = Array.isArray((result as any).nextSteps)
+    ? (result as any).nextSteps.filter((s: unknown) => typeof s === 'string').slice(0, 3)
+    : [];
+
   return {
     overallAssessment: assessment as 'Correcto' | 'Mejorable' | 'Insuficiente',
     summary: (result as any).summary || '',
@@ -72,5 +80,7 @@ Instrucciones:
     improvements: (result as any).improvements || [],
     coherenceNotes: (result as any).coherenceNotes || [],
     referenceComparison: (result as any).referenceComparison || '',
+    about: (result as any).about || '',
+    nextSteps,
   };
 }

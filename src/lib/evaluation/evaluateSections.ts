@@ -32,13 +32,20 @@ export function mergeTinySections(sections: Section[], minChars = 300): Section[
   const kept: Section[] = [];
   for (const section of sections) {
     const figureIds = section.figureIds ?? [];
+    const title = section.title ?? '';
+    const text = section.text ?? '';
     const last = kept[kept.length - 1];
-    if (last && section.text.trim().length < minChars) {
-      last.text += `\n\n## ${section.title}\n${section.text}`;
+    // Solo se absorben los fragmentos diminutos SIN título propio (líneas sueltas,
+    // rótulos, restos de paginación). Las secciones con título se conservan siempre
+    // para no colapsar la estructura real del documento en un único bloque.
+    if (last && !title.trim() && text.trim().length < minChars) {
+      if (text.trim()) {
+        last.text += `\n\n${text}`;
+      }
       last.pageEnd = section.pageEnd ?? last.pageEnd;
       last.figureIds = [...(last.figureIds ?? []), ...figureIds];
     } else {
-      kept.push({ ...section, figureIds: [...figureIds] });
+      kept.push({ ...section, title, text, figureIds: [...figureIds] });
     }
   }
   return kept;
@@ -62,6 +69,7 @@ function notEvaluated(
           maxScore: c.maxScore,
           evidence: '',
           feedback: 'No evaluado por error.',
+          evaluable: true,
         }))
       : [],
     strengths: [],
@@ -118,8 +126,11 @@ export async function evaluateSections(
     try {
       const truncatedText = section.text.length > maxChars ? section.text.slice(0, maxChars) + '[…]' : section.text;
 
+      const criteriaList = input.rubric.criteria
+        .map((c: RubricCriterion) => `- ${c.name} (id: ${c.id}, 0-${c.maxScore})`)
+        .join('\n');
       const payload = {
-        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${input.rubric.criteria.map((c: RubricCriterion) => `- ${c.name} (0-${c.maxScore})`).join('\n')}\nTexto de la sección (recortado si es largo):\n${truncatedText}`,
+        prompt: `Evalúa la sección "${section.title}" del informe según los criterios:\n${criteriaList}\nTexto de la sección (recortado si es largo):\n${truncatedText}\n\nResponde un objeto por criterio con su "criterionId" EXACTO de la lista. Si un criterio no se puede valorar con el contenido de esta sección ni del documento aportado (por ejemplo, criterios de exposición oral o defensa cuando solo se ha entregado el informe escrito), márcalo con "evaluable": false y explica el motivo en "motivo".`,
         schema: {
           type: 'object',
           properties: {
@@ -128,9 +139,9 @@ export async function evaluateSections(
               items: {
                 type: 'object',
                 properties: {
-                  criterionId: { type: 'string' }, score: { type: 'number' }, maxScore: { type: 'number' }, evidence: { type: 'string' }, feedback: { type: 'string' },
+                  criterionId: { type: 'string' }, score: { type: 'number' }, maxScore: { type: 'number' }, evidence: { type: 'string' }, feedback: { type: 'string' }, evaluable: { type: 'boolean' }, motivo: { type: 'string' },
                 },
-                required: ['criterionId', 'score', 'maxScore', 'evidence', 'feedback'],
+                required: ['criterionId', 'score', 'maxScore', 'evidence', 'feedback', 'evaluable'],
               },
             },
             strengths: { type: 'array', items: { type: 'string' } },
@@ -151,13 +162,22 @@ export async function evaluateSections(
       const response = await client.generateJson(payload);
       const data = response as any;
 
-      const criteriaResults = (data.criteria || []).map((c: any) => ({
-        criterionId: c.criterionId,
-        score: Math.min(Math.max(c.score, 0), c.maxScore || input.rubric.scale.max),
-        maxScore: c.maxScore || input.rubric.scale.max,
-        evidence: c.evidence || '',
-        feedback: c.feedback || '',
-      }));
+      const criteriaResults = (data.criteria || []).map((c: any) => {
+        // La IA a veces devuelve el nombre en vez del identificador: se normaliza
+        // al identificador canónico de la rúbrica para que el informe lo encuentre.
+        const canonical =
+          input.rubric.criteria.find((r: RubricCriterion) => r.id === c.criterionId) ??
+          input.rubric.criteria.find((r: RubricCriterion) => r.name === c.criterionId);
+        return {
+          criterionId: canonical?.id ?? c.criterionId,
+          score: Math.min(Math.max(c.score, 0), c.maxScore || input.rubric.scale.max),
+          maxScore: c.maxScore || input.rubric.scale.max,
+          evidence: c.evidence || '',
+          feedback: c.feedback || '',
+          evaluable: c.evaluable !== false,
+          motivo: typeof c.motivo === 'string' && c.motivo ? c.motivo : undefined,
+        };
+      });
 
       consecutiveFailures = 0;
       const result: SectionEvaluation = {

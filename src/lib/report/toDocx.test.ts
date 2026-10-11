@@ -24,13 +24,15 @@ function sampleView(): ReportView {
       fingerprint: 'fp',
     },
     document: { fileName: 'informe.pdf', format: 'pdf', stats: { words: 100, figuresUsed: 0, figuresDiscarded: 0 } },
-    map: { slots: [], summary: 'Resumen.' },
+    map: { slots: [], summary: 'Resumen.', titles: [{ sectionId: 's1', title: 'Objetivos' }] },
     sections: [
       {
         sectionId: 's1',
         title: 'Objetivos',
         slotId: 'objetivos',
-        criteria: [{ criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Evidencia', feedback: 'Bien.' }],
+        criteria: [
+          { criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Evidencia', feedback: 'Bien.', evaluable: true },
+        ],
         strengths: [],
         improvements: [],
         figureNotes: [],
@@ -44,6 +46,8 @@ function sampleView(): ReportView {
       improvements: [],
       coherenceNotes: [],
       referenceComparison: '',
+      about: 'Informe de ejemplo.',
+      nextSteps: [],
     },
   };
 }

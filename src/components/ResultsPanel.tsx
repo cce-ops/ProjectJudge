@@ -1,4 +1,5 @@
 import type { ReportView } from '../types/evaluation';
+import { displayTitle, resultsForCriterion, formatFigureNote } from '../lib/report/buildReport';
 
 interface ResultsPanelProps {
   view: ReportView;
@@ -8,6 +9,8 @@ interface ResultsPanelProps {
 
 export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProps) {
   const missing = view.map.slots.filter((s) => !s.present);
+  const evaluatedSections = view.sections.filter((s) => s.evaluated);
+  const fullCoverageMiss = missing.length > 0 && missing.length >= view.map.slots.length;
 
   return (
     <div className="space-y-6">
@@ -49,28 +52,79 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <h4 className="mb-1 text-sm font-bold uppercase tracking-wider">Ficha del informe</h4>
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm md:grid-cols-2">
+          <div>
+            <dt className="inline font-bold">Archivo: </dt>
+            <dd className="inline">{view.document.fileName}</dd>
+          </div>
+          <div>
+            <dt className="inline font-bold">Rúbrica: </dt>
+            <dd className="inline">{view.rubric.source}</dd>
+          </div>
+          <div>
+            <dt className="inline font-bold">Modelo y fecha: </dt>
+            <dd className="inline">
+              {view.model} · {view.createdAt}
+            </dd>
+          </div>
+          <div>
+            <dt className="inline font-bold">Contenido: </dt>
+            <dd className="inline">
+              {view.document.stats.words} palabras, {view.document.stats.figuresUsed} figuras en{' '}
+              {evaluatedSections.length} apartados evaluados
+              {view.document.stats.pages ? ` (${view.document.stats.pages} páginas)` : ''}
+            </dd>
+          </div>
+        </dl>
+        {view.synthesis.about && (
+          <div className="mt-3">
+            <h5 className="font-bold">De qué trata</h5>
+            <p className="text-sm">{view.synthesis.about}</p>
+          </div>
+        )}
+        <div className="mt-3">
+          <h5 className="font-bold">Estructura detectada</h5>
+          <ul className="list-disc pl-5 text-sm">
+            {view.sections.map((s) => (
+              <li key={s.sectionId}>
+                {displayTitle(view, s)}
+                {!s.evaluated && <span className="text-gray-500"> (no evaluado)</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <h4 className="mb-3 text-sm font-bold uppercase tracking-wider">Criterios de evaluación</h4>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {view.rubric.criteria.map((c) => {
-            const evaluated = view.sections
-              .filter((s) => s.evaluated)
-              .flatMap((s) => s.criteria)
-              .filter((r) => r.criterionId === c.id);
+            const results = resultsForCriterion(view, c);
             return (
               <div key={c.id} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-950">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold">{c.name}</span>
-                  {evaluated.length > 0 && (
+                  {results.length > 0 && results[0].evaluable && (
                     <span className="text-xs font-extrabold text-blue-700">
-                      {evaluated.map((r) => `${r.score}/${r.maxScore}`).join(' · ')}
+                      {results.map((r) => `${r.score}/${r.maxScore}`).join(' · ')}
                     </span>
                   )}
                 </div>
-                {evaluated.map((r, i) => (
-                  <p key={i} className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                    {r.feedback} Evidencia: {r.evidence}
-                  </p>
-                ))}
+                {results.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-500">Sin evidencias en el documento evaluado.</p>
+                )}
+                {results.map((r, i) =>
+                  !r.evaluable ? (
+                    <p key={i} className="mt-1 text-xs text-gray-500">
+                      No evaluable en este documento: {r.motivo || 'sin motivo indicado'}.
+                    </p>
+                  ) : (
+                    <p key={i} className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                      {r.feedback} Evidencia: {r.evidence}
+                    </p>
+                  )
+                )}
               </div>
             );
           })}
@@ -84,7 +138,7 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
             key={s.sectionId}
             className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm print:break-inside-avoid dark:border-gray-800 dark:bg-gray-900"
           >
-            <h5 className="text-sm font-bold">{s.title || s.sectionId}</h5>
+            <h5 className="text-sm font-bold">{displayTitle(view, s)}</h5>
             {!s.evaluated ? (
               <p className="mt-1 text-xs text-gray-500">No evaluada: {s.error ?? 'sin motivo indicado'}.</p>
             ) : (
@@ -104,9 +158,7 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
                 {s.figureNotes.length > 0 && (
                   <ul className="list-disc pl-5">
                     {s.figureNotes.map((f, i) => (
-                      <li key={i}>
-                        Figura {f.figureId}: {f.note}
-                      </li>
+                      <li key={i}>{formatFigureNote(f.figureId, f.note)}</li>
                     ))}
                   </ul>
                 )}
@@ -116,16 +168,41 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
         ))}
       </section>
 
-      {missing.length > 0 && (
-        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
-          <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Apartados ausentes</h4>
-          <ul className="list-disc pl-5 text-sm">
-            {missing.map((m) => (
-              <li key={m.slot.id}>
-                {m.slot.label}: no se ha detectado en el documento.
-              </li>
+      {missing.length > 0 &&
+        (fullCoverageMiss ? (
+          <details className="rounded-2xl border border-amber-300 bg-amber-50 p-6 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+            <summary className="cursor-pointer text-sm font-bold uppercase tracking-wider">
+              Apartados ausentes ({missing.length})
+            </summary>
+            <p className="mt-2 text-sm">
+              Ningún apartado de la plantilla se ha localizado con seguridad; la estructura detectada se muestra
+              arriba. Revisa que el documento tenga encabezados claros.
+            </p>
+            <ul className="mt-2 list-disc pl-5 text-sm">
+              {missing.map((m) => (
+                <li key={m.slot.id}>{m.slot.label}: no se ha detectado en el documento.</li>
+              ))}
+            </ul>
+          </details>
+        ) : (
+          <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+            <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Apartados ausentes</h4>
+            <ul className="list-disc pl-5 text-sm">
+              {missing.map((m) => (
+                <li key={m.slot.id}>{m.slot.label}: no se ha detectado en el documento.</li>
+              ))}
+            </ul>
+          </section>
+        ))}
+
+      {view.synthesis.nextSteps.length > 0 && (
+        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Para subir de nivel</h4>
+          <ol className="list-decimal space-y-1 pl-5 text-sm">
+            {view.synthesis.nextSteps.map((step, i) => (
+              <li key={i}>{step}</li>
             ))}
-          </ul>
+          </ol>
         </section>
       )}
 
