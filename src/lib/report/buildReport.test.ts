@@ -180,8 +180,7 @@ describe('buildReportBlocks', () => {
     expect(body).toContain('Se mezclan coma y punto.');
   });
 
-  it('muestra un criterio totalmente no evaluable en una sola linea', () => {
-    const view = sampleView();
+  it('muestra un criterio totalmente no evaluable en una sola linea', () => {    const view = sampleView();
     view.rubric.criteria.push({ id: 'c2', name: 'Exposición', description: '', maxScore: 10, levels: [] });
     view.sections[0].criteria.push({
       criterionId: 'c2',
@@ -196,5 +195,14 @@ describe('buildReportBlocks', () => {
       .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
       .join('\n');
     expect(body).toContain('No evaluable en este documento: Requiere la defensa oral.');
+  });
+
+  it('incluye la categoria y el peso en la linea del criterio', () => {
+    const view = sampleView();
+    view.rubric.criteria[0] = { ...view.rubric.criteria[0], group: 'Cálculos', weight: 30 };
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('[Cálculos · 30%]');
   });
 });

@@ -1,5 +1,6 @@
 import type { ReportView } from '../types/evaluation';
 import { displayTitle, verdictsForCriterion, formatFigureNote, nonEvaluableLine } from '../lib/report/buildReport';
+import { formatGroupWeight } from '../lib/rubric/weights';
 
 interface ResultsPanelProps {
   view: ReportView;
@@ -107,7 +108,12 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
             return (
               <div key={c.id} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-950">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">{c.name}</span>
+                  <span className="text-xs font-bold">
+                    {c.name}
+                    {formatGroupWeight(c) && (
+                      <span className="font-normal text-gray-500"> ({formatGroupWeight(c)})</span>
+                    )}
+                  </span>
                   {evaluated.length > 0 && (
                     <span className="text-xs font-extrabold text-blue-700">
                       {evaluated.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · ')}

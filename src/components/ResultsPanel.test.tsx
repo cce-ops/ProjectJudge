@@ -109,8 +109,7 @@ describe('ResultsPanel', () => {
     expect(container.textContent).not.toMatch(/puntuaci.n global/i);
   });
 
-  it('muestra la ficha con presentacion, estructura y proximos pasos', () => {
-    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+  it('muestra la ficha con presentacion, estructura y proximos pasos', () => {    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByText(/Ficha del informe/)).toBeInTheDocument();
     expect(screen.getByText(/comunidad energética/)).toBeInTheDocument();
     expect(screen.getAllByText(/Objetivos del estudio/).length).toBeGreaterThan(0);
@@ -158,5 +157,12 @@ describe('ResultsPanel', () => {
     render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Comprobaciones' })).toBeInTheDocument();
     expect(screen.getByText(/Se mezclan coma y punto/)).toBeInTheDocument();
+  });
+
+  it('muestra la categoria y el peso del criterio', () => {
+    const view = sampleView();
+    view.rubric.criteria[0] = { ...view.rubric.criteria[0], group: 'Cálculos', weight: 30 };
+    render(<ResultsPanel view={view} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+    expect(screen.getByText(/Cálculos · 30%/)).toBeInTheDocument();
   });
 });

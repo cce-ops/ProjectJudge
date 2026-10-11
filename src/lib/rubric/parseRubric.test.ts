@@ -38,4 +38,33 @@ describe('parseRubric', () => {
     const result = await parseRubric('R', mockClient) as RubricModel;
     expect(result.criteria[0].maxScore).toBe(10);
   });
+
+  it('conserva la categoria y el peso cuando son validos', async () => {
+    const mockGenerate = vi.fn().mockResolvedValue({
+      criteria: [{ id: 'c1', name: 'Diseño', maxScore: 2, levels: [], group: 'Cálculos', weight: 30 }],
+      scale: { min: 0, max: 2 },
+      source: 'Rúbrica',
+    });
+    const mockClient: JsonClient = { generateJson: mockGenerate } as any;
+    const result = await parseRubric('Rúbrica con pesos.', mockClient);
+    expect(result.criteria[0].group).toBe('Cálculos');
+    expect(result.criteria[0].weight).toBe(30);
+  });
+
+  it('descarta pesos invalidos y categorias vacias', async () => {
+    const mockGenerate = vi.fn().mockResolvedValue({
+      criteria: [
+        { id: 'c1', name: 'A', maxScore: 2, levels: [], group: '  ', weight: 150 },
+        { id: 'c2', name: 'B', maxScore: 2, levels: [] },
+      ],
+      scale: { min: 0, max: 2 },
+      source: 'Rúbrica',
+    });
+    const mockClient: JsonClient = { generateJson: mockGenerate } as any;
+    const result = await parseRubric('Rúbrica con pesos raros.', mockClient);
+    expect(result.criteria[0].group).toBeUndefined();
+    expect(result.criteria[0].weight).toBeUndefined();
+    expect(result.criteria[1].group).toBeUndefined();
+    expect(result.criteria[1].weight).toBeUndefined();
+  });
 });

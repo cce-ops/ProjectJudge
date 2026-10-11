@@ -1,5 +1,6 @@
 import type { ReportView, SectionEvaluation, SectionCriterionResult } from '../../types/evaluation';
 import type { RubricCriterion } from '../../types/rubric';
+import { formatGroupWeight } from '../rubric/weights';
 
 export interface ReportBlock {
   heading: string;
@@ -69,7 +70,8 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
   blocks.push({
     heading: 'Criterios de evaluación',
     paragraphs: view.rubric.criteria.flatMap((c) => {
-      const lines = [`${c.name} (máximo ${c.maxScore}): ${c.description}`];
+      const weightSuffix = formatGroupWeight(c) ? ` [${formatGroupWeight(c)}]` : '';
+      const lines = [`${c.name} (máximo ${c.maxScore})${weightSuffix}: ${c.description}`];
       const verdicts = verdictsForCriterion(view, c);
       const evaluated = verdicts.filter((v) => v.result.evaluable);
       const nonEvaluated = verdicts.filter((v) => !v.result.evaluable);

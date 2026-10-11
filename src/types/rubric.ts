@@ -8,7 +8,9 @@ export interface RubricCriterion {
   name: string; 
   description: string; 
   levels: RubricLevel[]; 
-  maxScore: number 
+  maxScore: number;
+  group?: string;
+  weight?: number;
 }
 export interface RubricModel {
   criteria: RubricCriterion[]; 

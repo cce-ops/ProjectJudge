@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { JsonClient } from '../lib/ai/gemini';
 import type { RubricModel } from '../types/rubric';
 import { parseRubric } from '../lib/rubric/parseRubric';
+import { formatGroupWeight } from '../lib/rubric/weights';
 
 interface RubricPanelProps {
   client: JsonClient | null;
@@ -97,6 +98,9 @@ export function RubricPanel({ client, onConfirmed, initialText }: RubricPanelPro
               <li key={c.id} className="rounded-xl border border-gray-200 p-3 text-sm dark:border-gray-800">
                 <span className="font-bold">{c.name}</span>{' '}
                 <span className="text-gray-500">({c.maxScore} puntos)</span>
+                {formatGroupWeight(c) && (
+                  <span className="text-gray-500"> ({formatGroupWeight(c)})</span>
+                )}
                 <p className="text-xs text-gray-500">{c.description}</p>
               </li>
             ))}

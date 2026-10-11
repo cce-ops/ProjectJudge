@@ -39,6 +39,30 @@ describe('RubricPanel', () => {
     expect(screen.getByText(/\(10 puntos\)/)).toBeInTheDocument();
   });
 
+  it('muestra la categoria y el peso cuando existen', async () => {
+    const client: JsonClient = {
+      generateJson: vi.fn().mockResolvedValue({
+        criteria: [
+          {
+            id: 'c1',
+            name: 'Diseño',
+            description: '',
+            maxScore: 2,
+            levels: [],
+            group: 'Cálculos',
+            weight: 30,
+          },
+        ],
+        scale: { min: 0, max: 2 },
+        source: 'Manual',
+      }),
+    } as unknown as JsonClient;
+    render(<RubricPanel client={client} onConfirmed={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/rúbrica/i), { target: { value: 'Algo' } });
+    fireEvent.click(screen.getByRole('button', { name: /interpretar rúbrica/i }));
+    expect(await screen.findByText(/Cálculos · 30%/)).toBeInTheDocument();
+  });
+
   it('deshabilita Confirmar hasta que haya criterios', async () => {
     const onConfirmed = vi.fn();
     render(<RubricPanel client={stubClient()} onConfirmed={onConfirmed} />);
