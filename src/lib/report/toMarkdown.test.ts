@@ -60,7 +60,7 @@ describe('toMarkdown', () => {
     const md = toMarkdown(sampleView());
     expect(md).toContain('# Informe: informe.pdf — Mejorable');
     expect(md).toContain('## Ficha del informe');
-    expect(md).toContain('Rigor técnico (máx 10) [Cálculos · 30%]');
+    expect(md).toContain('Rigor técnico');
     expect(md).toContain('8/10');
     expect(md).toContain('## Evaluación por apartados');
     expect(md).toContain('### Objetivos');

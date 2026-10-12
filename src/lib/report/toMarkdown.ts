@@ -1,20 +1,7 @@
 import type { ReportView, SectionEvaluation } from '../../types/evaluation';
-import { verdictsForCriterion, nonEvaluableLine } from './buildReport';
+import { verdictsForCriterion } from './buildReport';
 
-function formatSection(section: SectionEvaluation): string {
-  const lines: string[] = [];
-  lines.push(`### ${section.title || section.sectionId}`);
-  if (!section.evaluated) {
-    lines.push(`No evaluado: ${section.error || 'sin motivo indicado'}.`);
-    return lines.join('\n');
-  }
-  if (section.strengths.length > 0) lines.push(`**Puntos fuertes:** ${section.strengths.join('; ')}`);
-  if (section.improvements.length > 0) lines.push(`**Mejoras:** ${section.improvements.join('; ')}`);
-  for (const fn of section.figureNotes) {
-    lines.push(`- ${fn.note}`);
-  }
-  return lines.join('\n');
-}
+
 
 export function toMarkdown(view: ReportView): string {
   const lines: string[] = [];
@@ -28,10 +15,10 @@ export function toMarkdown(view: ReportView): string {
   lines.push(`- **Archivo:** ${view.document.fileName}`);
   lines.push(`- **Rúbrica:** ${view.rubric.source}`);
   lines.push(`- **Modelo y fecha:** ${view.model} · ${view.createdAt}`);
-  lines.push(`- **Contenido:** ${view.document.stats.words} palabras, ${view.document.stats.figuresUsed} figuras en ${view.sections.filter((s) => s.evaluated).length} apartados evaluados`);
+  lines.push(`- **Contenido:** ${view.document.stats.words} palabras, ${view.document.stats.figuresUsed} figuras en ${view.sections.filter((s: SectionEvaluation) => s.evaluated).length} apartados evaluados`);
   if (view.synthesis.about) lines.push(`- **De qué trata:** ${view.synthesis.about}`);
 
-  const evaluatedTitles = view.sections.filter((s) => s.evaluated).map((s) => s.title);
+  const evaluatedTitles = view.sections.filter((s: SectionEvaluation) => s.evaluated).map((s: SectionEvaluation) => s.title);
   const pendingCount = view.sections.length - evaluatedTitles.length;
   if (view.sections.length > 0) {
     lines.push(`- **Estructura detectada:** ${evaluatedTitles.join(' · ')}${pendingCount > 0 ? ` … y ${pendingCount} apartados más sin evaluar.` : ''}`);
@@ -39,42 +26,22 @@ export function toMarkdown(view: ReportView): string {
 
   // Criterios
   lines.push('');
-  lines.push('## Criterios de evaluación');
+  lines.push('## Resumen de criterios');
   for (const criterion of view.rubric.criteria) {
-    const weightSuffix = criterion.group && criterion.weight ? ` [${criterion.group} · ${criterion.weight}%]` : '';
-    lines.push(`### ${criterion.name} (máx ${criterion.maxScore})${weightSuffix}`);
-
     const verdicts = verdictsForCriterion(view, criterion);
-    if (verdicts.length === 0) {
-      lines.push('Sin evaluar aún.');
-      continue;
-    }
-
     const evaluated = verdicts.filter((v) => v.result.evaluable);
-    if (evaluated.length === 0) {
-      lines.push('No evaluable en este documento.');
-      continue;
+    if (evaluated.length > 0) {
+      const scores = evaluated.map((v) => {
+        const rubricCriterion = view.rubric.criteria.find((c) => c.id === v.result.criterionId);
+        const weightSuffix = rubricCriterion?.group && rubricCriterion?.weight ? ` [${rubricCriterion.group} · ${rubricCriterion.weight}%]` : '';
+        return `${v.result.score}/${v.result.maxScore}${weightSuffix}`;
+      }).join(' · ');
+      lines.push(`- ${criterion.name}: ${scores}`);
+    } else {
+      lines.push(`- ${criterion.name}: No evaluable en este documento.`);
     }
-
-    const scores = evaluated.map((v) => {
-      const rubricCriterion = view.rubric.criteria.find((c) => c.id === v.result.criterionId);
-      const weightSuffix = rubricCriterion?.group && rubricCriterion?.weight ? ` [${rubricCriterion.group} · ${rubricCriterion.weight}%]` : '';
-      return `${v.result.score}/${v.result.maxScore}${weightSuffix}`;
-    }).join(' · ');
-    lines.push(`Puntuación: ${scores}`);
-
-    for (const v of evaluated) {
-      const rubricCriterion = view.rubric.criteria.find((c) => c.id === v.result.criterionId);
-      const weightSuffix = rubricCriterion?.group && rubricCriterion?.weight ? ` [${rubricCriterion.group} · ${rubricCriterion.weight}%]` : '';
-      lines.push(`- [${v.sectionTitle}]${weightSuffix}: ${v.result.feedback} Evidencia: ${v.result.evidence}`);
-    }
-
-    const nonEvaluated = verdicts.filter((v) => !v.result.evaluable);
-    if (nonEvaluated.length > 0) {
-      lines.push(nonEvaluableLine(nonEvaluated.map((v) => v.sectionTitle)));
-    }
-    lines.push('');
   }
+  lines.push('');
 
   // Sections
   lines.push('');
@@ -85,7 +52,7 @@ export function toMarkdown(view: ReportView): string {
       lines.push(`No evaluado: ${section.error || 'sin motivo indicado'}.`);
       continue;
     }
-    lines.push(formatSection({ ...section, figureNotes: section.figureNotes }));
+    lines.push(formatSection(section));
     lines.push('');
   }
 
@@ -131,3 +98,19 @@ export function toMarkdown(view: ReportView): string {
 
   return lines.join('\n');
 }
+
+function formatSection(section: SectionEvaluation): string {
+  const lines: string[] = [];
+  lines.push(`### ${section.title || section.sectionId}`);
+  if (!section.evaluated) {
+    lines.push(`No evaluado: ${section.error || 'sin motivo indicado'}.`);
+    return lines.join('\n');
+  }
+  if (section.strengths.length > 0) lines.push(`**Puntos fuertes:** ${section.strengths.join('; ')}`);
+  if (section.improvements.length > 0) lines.push(`**Mejoras:** ${section.improvements.join('; ')}`);
+  for (const fn of section.figureNotes) {
+    lines.push(`- ${fn.note}`);
+  }
+  return lines.join('\n');
+}
+
