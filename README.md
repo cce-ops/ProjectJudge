@@ -8,6 +8,8 @@ apartados, con fortalezas, mejoras y evidencias.
 
 Es una herramienta de **apoyo**: no emite nota global, para no suplantar el criterio del profesor.
 
+https://projectjudge.pages.dev/
+
 ## Flujo en tres pasos
 
 1. **Rúbrica** — Se pega el texto, o se adjunta un archivo (`.md`, `.txt`, `.docx`, `.pdf`,
