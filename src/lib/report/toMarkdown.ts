@@ -1,7 +1,34 @@
 import type { ReportView, SectionEvaluation } from '../../types/evaluation';
+import type { RubricCriterion } from '../../types/rubric';
 import { verdictsForCriterion } from './buildReport';
 
+function formatSection(section: SectionEvaluation, view: ReportView): string {
+  const lines: string[] = [];
+  lines.push(`### ${section.title || section.sectionId}`);
+  if (!section.evaluated) {
+    lines.push(`No evaluado: ${section.error || 'sin motivo indicado'}.`);
+    return lines.join('\n');
+  }
 
+  const byCriterion = new Map<string, { score: number; maxScore: number; feedback: string; evidence: string }>();
+  for (const c of section.criteria) {
+    byCriterion.set(c.criterionId, { score: c.score, maxScore: c.maxScore, feedback: c.feedback, evidence: c.evidence });
+  }
+  for (const [criterionId, result] of byCriterion) {
+    const criterion = view.rubric.criteria.find((c) => c.id === criterionId);
+    const name = criterion?.name ?? criterionId;
+    const weightSuffix = criterion?.group && criterion?.weight ? ` [${criterion.group} · ${criterion.weight}%]` : '';
+    const evidence = result.evidence.trim();
+    const feedback = result.feedback.trim();
+    const evidenceLine = evidence ? ` Evidencia: ${evidence}` : '';
+    const feedbackLine = feedback ? ` ${feedback}` : '';
+    lines.push(`- ${name}: ${result.score}/${result.maxScore}${weightSuffix}.${feedbackLine}${evidenceLine}`);
+  }
+
+  if (section.strengths.length > 0) lines.push(`**Puntos fuertes:** ${section.strengths.join('; ')}`);
+  if (section.improvements.length > 0) lines.push(`**Mejoras:** ${section.improvements.join('; ')}`);
+  return lines.join('\n');
+}
 
 export function toMarkdown(view: ReportView): string {
   const lines: string[] = [];
@@ -15,67 +42,28 @@ export function toMarkdown(view: ReportView): string {
   lines.push(`- **Archivo:** ${view.document.fileName}`);
   lines.push(`- **Rúbrica:** ${view.rubric.source}`);
   lines.push(`- **Modelo y fecha:** ${view.model} · ${view.createdAt}`);
-  lines.push(`- **Contenido:** ${view.document.stats.words} palabras, ${view.document.stats.figuresUsed} figuras en ${view.sections.filter((s: SectionEvaluation) => s.evaluated).length} apartados evaluados`);
+  const evaluatedCount = view.sections.filter((s) => s.evaluated).length;
+  lines.push(`- **Contenido:** ${evaluatedCount} apartados evaluados`);
   if (view.synthesis.about) lines.push(`- **De qué trata:** ${view.synthesis.about}`);
-
-  const evaluatedTitles = view.sections.filter((s: SectionEvaluation) => s.evaluated).map((s: SectionEvaluation) => s.title);
-  const pendingCount = view.sections.length - evaluatedTitles.length;
-  if (view.sections.length > 0) {
-    lines.push(`- **Estructura detectada:** ${evaluatedTitles.join(' · ')}${pendingCount > 0 ? ` … y ${pendingCount} apartados más sin evaluar.` : ''}`);
-  }
-
-  // Criterios
-  lines.push('');
-  lines.push('## Resumen de criterios');
-  for (const criterion of view.rubric.criteria) {
-    const verdicts = verdictsForCriterion(view, criterion);
-    const evaluated = verdicts.filter((v) => v.result.evaluable);
-    if (evaluated.length > 0) {
-      const scores = evaluated.map((v) => {
-        const rubricCriterion = view.rubric.criteria.find((c) => c.id === v.result.criterionId);
-        const weightSuffix = rubricCriterion?.group && rubricCriterion?.weight ? ` [${rubricCriterion.group} · ${rubricCriterion.weight}%]` : '';
-        return `${v.result.score}/${v.result.maxScore}${weightSuffix}`;
-      }).join(' · ');
-      lines.push(`- ${criterion.name}: ${scores}`);
-    } else {
-      lines.push(`- ${criterion.name}: No evaluable en este documento.`);
-    }
-  }
   lines.push('');
 
-  // Sections
-  lines.push('');
+  // Evaluación por apartados (con criterios dentro de cada cuadro)
   lines.push('## Evaluación por apartados');
   for (const section of view.sections) {
-    lines.push(`### ${section.title || section.sectionId}`);
-    if (!section.evaluated) {
-      lines.push(`No evaluado: ${section.error || 'sin motivo indicado'}.`);
-      continue;
-    }
-    lines.push(formatSection(section));
+    lines.push(formatSection(section, view));
     lines.push('');
   }
 
   // Checks
   if (view.checks && view.checks.length > 0) {
-    lines.push('');
     lines.push('## Comprobaciones');
     for (const check of view.checks) {
       lines.push(`- ${check.passed ? '✓' : '⚠'} ${check.message}`);
     }
-  }
-
-  // Next steps
-  if (view.synthesis.nextSteps && view.synthesis.nextSteps.length > 0) {
     lines.push('');
-    lines.push('## Para subir de nivel');
-    for (const step of view.synthesis.nextSteps) {
-      lines.push(`- ${step}`);
-    }
   }
 
   // Coherence
-  lines.push('');
   lines.push('## Coherencia y comparación');
   lines.push(view.synthesis.summary);
   if (view.synthesis.coherenceNotes.length > 0) {
@@ -87,30 +75,5 @@ export function toMarkdown(view: ReportView): string {
     lines.push(`Comparación con referencias: ${view.synthesis.referenceComparison}`);
   }
 
-  // Next steps
-  if (view.synthesis.nextSteps && view.synthesis.nextSteps.length > 0) {
-    lines.push('');
-    lines.push('## Para subir de nivel');
-    for (const step of view.synthesis.nextSteps) {
-      lines.push(`- ${step}`);
-    }
-  }
-
   return lines.join('\n');
 }
-
-function formatSection(section: SectionEvaluation): string {
-  const lines: string[] = [];
-  lines.push(`### ${section.title || section.sectionId}`);
-  if (!section.evaluated) {
-    lines.push(`No evaluado: ${section.error || 'sin motivo indicado'}.`);
-    return lines.join('\n');
-  }
-  if (section.strengths.length > 0) lines.push(`**Puntos fuertes:** ${section.strengths.join('; ')}`);
-  if (section.improvements.length > 0) lines.push(`**Mejoras:** ${section.improvements.join('; ')}`);
-  for (const fn of section.figureNotes) {
-    lines.push(`- ${fn.note}`);
-  }
-  return lines.join('\n');
-}
-

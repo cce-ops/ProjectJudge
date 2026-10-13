@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { toMarkdown } from './toMarkdown';
+import type { ReportView } from '../../types/evaluation';
 
-function sampleView() {
+function sampleView(): ReportView {
   return {
     reportId: 'rep-1',
     createdAt: '2026-10-11T00:00:00.000Z',
@@ -14,8 +15,6 @@ function sampleView() {
           description: '',
           maxScore: 10,
           levels: [{ label: 'Bien', descriptor: '', score: 8 }],
-          group: 'Cálculos',
-          weight: 30,
         },
       ],
       scale: { min: 0, max: 10 },
@@ -30,7 +29,7 @@ function sampleView() {
         title: 'Objetivos',
         slotId: 'objetivos',
         criteria: [
-          { criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Evidencia', feedback: 'Bien.', evaluable: true },
+          { criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Evidencia', feedback: 'Bien.' },
         ],
         strengths: ['Claridad'],
         improvements: ['Cuantificar'],
@@ -39,7 +38,7 @@ function sampleView() {
       },
     ],
     synthesis: {
-      overallAssessment: 'Mejorable' as const,
+      overallAssessment: 'Mejorable',
       summary: 'Resumen global.',
       strengths: ['S'],
       improvements: ['I'],
@@ -49,24 +48,22 @@ function sampleView() {
       nextSteps: ['Cuantificar el CAPEX.'],
     },
     checks: [
-      { id: 'figuras-citadas', passed: true, message: 'Figuras citadas: 2. Imágenes: 1.' },
+      { id: 'figuras-citadas', passed: true, message: 'Figuras citadas: 2. Imágenes detectadas: 1.' },
       { id: 'decimales', passed: false, message: 'Se mezclan coma y punto.' },
     ],
   };
 }
 
 describe('toMarkdown', () => {
-  it('genera markdown con cabecera, criterios, apartados y comprobaciones', () => {
+  it('genera markdown con cabecera, criterios y apartados', () => {
     const md = toMarkdown(sampleView());
     expect(md).toContain('# Informe: informe.pdf — Mejorable');
-    expect(md).toContain('## Ficha del informe');
-    expect(md).toContain('Rigor técnico');
-    expect(md).toContain('8/10');
+    expect(md).toContain('## Resumen de criterios');
+    expect(md).toContain('Rigor técnico: 8/10');
     expect(md).toContain('## Evaluación por apartados');
     expect(md).toContain('### Objetivos');
-    expect(md).toContain('## Comprobaciones');
-    expect(md).toContain('Se mezclan coma y punto');
-    expect(md).toContain('## Para subir de nivel');
-    expect(md).toContain('Cuantificar el CAPEX');
+    expect(md).toContain('**Puntos fuertes:** Claridad');
+    expect(md).toContain('**Mejoras:** Cuantificar');
+    expect(md).toContain('## Coherencia y comparación');
   });
 });
