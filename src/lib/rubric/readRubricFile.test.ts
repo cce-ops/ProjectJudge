@@ -16,4 +16,9 @@ describe('readRubricFile', () => {
     const file = { name: 'rubrica.exe' } as unknown as File;
     await expect(readRubricFile(file)).rejects.toThrow(/no compatible/i);
   });
+
+  it('indica que el .xls clasico ya no esta soportado', async () => {
+    const file = { name: 'rubrica.xls', arrayBuffer: async () => new ArrayBuffer(8) } as unknown as File;
+    await expect(readRubricFile(file)).rejects.toThrow(/ya no está soportado/i);
+  });
 });

@@ -143,7 +143,7 @@ export function Sidebar({
             ref={rubricFileRef}
             id="sidebar-rubric-file"
             type="file"
-            accept=".md,.txt,.docx,.pdf,.xlsx,.xls,.csv"
+            accept=".md,.txt,.docx,.pdf,.xlsx,.csv"
             aria-label="Adjuntar rúbrica"
             onChange={(e) => {
               const file = e.target.files?.[0];

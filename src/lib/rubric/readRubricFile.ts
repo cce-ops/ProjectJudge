@@ -6,12 +6,15 @@ export interface RubricFile {
   source: string;
 }
 
-/** Lee una rúbrica desde archivo (md, txt, docx, pdf, xlsx, xls, csv) y devuelve su texto. */
+/** Lee una rúbrica desde archivo (md, txt, docx, pdf, xlsx, csv) y devuelve su texto. */
 export async function readRubricFile(file: File): Promise<RubricFile> {
   const name = file.name.toLowerCase();
-  if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) {
+  if (name.endsWith('.xlsx') || name.endsWith('.csv')) {
     const data = await file.arrayBuffer();
     return { text: await spreadsheetToText(data), source: file.name };
+  }
+  if (name.endsWith('.xls')) {
+    throw new Error('El formato .xls (Excel 97-2003) ya no está soportado. Guarda la rúbrica como .xlsx o .csv.');
   }
   if (name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.docx') || name.endsWith('.pdf')) {
     const document = await extractDocument(file);
