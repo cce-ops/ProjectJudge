@@ -1,4 +1,4 @@
-# ProyectJudge — Evaluador de informes de ingeniería con IA
+# ProjectJudge — Evaluador de informes de ingeniería con IA
 
 Herramienta web que ayuda a un **profesor** a evaluar informes, proyectos y anteproyectos de
 ingeniería. El profesor aporta una **rúbrica** (pegándola o adjuntándola) y el **informe de un
