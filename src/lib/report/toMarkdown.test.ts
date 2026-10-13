@@ -29,7 +29,7 @@ function sampleView(): ReportView {
         title: 'Objetivos',
         slotId: 'objetivos',
         criteria: [
-          { criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Evidencia', feedback: 'Bien.' },
+          { criterionId: 'c1', score: 8, maxScore: 10, evidence: 'Evidencia', feedback: 'Bien.', evaluable: true },
         ],
         strengths: ['Claridad'],
         improvements: ['Cuantificar'],
@@ -58,7 +58,7 @@ describe('toMarkdown', () => {
   it('genera markdown con cabecera, criterios y apartados', () => {
     const md = toMarkdown(sampleView());
     expect(md).toContain('# Informe: informe.pdf — Mejorable');
-    expect(md).toContain('## Resumen de criterios');
+    expect(md).toContain('## Evaluación por apartados');
     expect(md).toContain('Rigor técnico: 8/10');
     expect(md).toContain('## Evaluación por apartados');
     expect(md).toContain('### Objetivos');

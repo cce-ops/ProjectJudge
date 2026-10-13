@@ -1,6 +1,4 @@
 import type { ReportView, SectionEvaluation } from '../../types/evaluation';
-import type { RubricCriterion } from '../../types/rubric';
-import { verdictsForCriterion } from './buildReport';
 
 function formatSection(section: SectionEvaluation, view: ReportView): string {
   const lines: string[] = [];
