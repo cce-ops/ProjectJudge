@@ -84,9 +84,9 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
             <p className="text-sm">{view.synthesis.about}</p>
           </div>
         )}
-        <div className="mt-3">
-          <h5 className="font-bold">Estructura detectada</h5>
-          <ul className="list-disc pl-5 text-sm">
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-bold">Estructura detectada</summary>
+          <ul className="mt-2 list-disc pl-5 text-sm">
             {view.sections
               .filter((s) => s.evaluated)
               .map((s) => (
@@ -100,7 +100,7 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
               evaluar.
             </p>
           )}
-        </div>
+        </details>
       </section>
 
       <section className="space-y-4">

@@ -29,6 +29,8 @@ export function Sidebar({
   const [rubricStatus, setRubricStatus] = useState<string | null>(null);
   const rubricFileRef = useRef<HTMLInputElement>(null);
 
+  const dark = settings.theme === 'dark';
+
   const handleRubricFile = async (file: File) => {
     setRubricStatus(null);
     try {
@@ -43,15 +45,27 @@ export function Sidebar({
   };
 
   return (
-    <aside className="w-full md:w-80 border-r border-gray-800 bg-gray-900 text-gray-200">
+    <aside
+      className={`w-full border-r p-4 md:w-80 ${
+        dark
+          ? 'border-gray-800 bg-gray-900 text-gray-200'
+          : 'border-gray-200 bg-gray-50 text-gray-900'
+      }`}
+    >
       <div className="border-b border-gray-800 p-4">
         <h1 className="text-sm font-bold text-white">ProyectJudge</h1>
         <p className="text-xs text-gray-400">Evaluador de informes con IA</p>
       </div>
 
       <div className="space-y-4 p-4">
-        <section className="space-y-2 rounded-xl border border-gray-800 bg-gray-950/60 p-3">
-          <span className="text-xs font-medium text-gray-300">Gemini API Key</span>
+        <section
+          className={`space-y-2 rounded-xl border p-3 ${
+            dark ? 'border-gray-800 bg-gray-950/60' : 'border-gray-200 bg-white'
+          }`}
+        >
+          <span className={`text-xs font-medium ${dark ? 'text-gray-300' : 'text-gray-700'}`}>
+            Gemini API Key
+          </span>
           {settings.apiKey ? (
             <div className="flex items-center justify-between">
               <span className="rounded-full border border-emerald-800/60 bg-emerald-950/80 px-2 py-0.5 text-[10px] text-emerald-400">
@@ -68,7 +82,9 @@ export function Sidebar({
                 placeholder="AIza..."
                 value={draftKey}
                 onChange={(e) => setDraftKey(e.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white placeholder-gray-500"
+                className={`w-full rounded-lg border px-3 py-2 text-xs text-white placeholder-gray-500 ${
+                  dark ? 'border-gray-700 bg-gray-900' : 'border-gray-300 bg-white text-gray-900'
+                }`}
               />
               <button
                 type="button"
@@ -85,14 +101,21 @@ export function Sidebar({
         </section>
 
         <section className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-300" htmlFor="model-select">
+          <label
+            className={`text-xs font-medium ${dark ? 'text-gray-300' : 'text-gray-700'}`}
+            htmlFor="model-select"
+          >
             Modelo de Gemini
           </label>
           <select
             id="model-select"
             value={settings.model}
             onChange={(e) => onModelChange(e.target.value)}
-            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-gray-200"
+            className={`w-full rounded-xl border px-3 py-2 text-xs ${
+              dark
+                ? 'border-gray-800 bg-gray-950 text-gray-200'
+                : 'border-gray-300 bg-white text-gray-900'
+            }`}
           >
             {AVAILABLE_MODELS.map((m) => (
               <option key={m} value={m}>
@@ -102,9 +125,11 @@ export function Sidebar({
           </select>
         </section>
 
-        <section className="space-y-2 border-t border-gray-800 pt-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Rúbrica</p>
-          <label className="block text-xs text-gray-300">
+        <section className={`space-y-2 border-t pt-3 ${dark ? 'border-gray-800' : 'border-gray-200'}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+            Rúbrica
+          </p>
+          <label className={`block text-xs ${dark ? 'text-gray-300' : 'text-gray-700'}`}>
             Adjuntar rúbrica
             <input
               ref={rubricFileRef}
@@ -115,10 +140,13 @@ export function Sidebar({
                 const file = e.target.files?.[0];
                 if (file) void handleRubricFile(file);
               }}
-              className="mt-1 block w-full text-[11px] text-gray-400"
+              className={`mt-1 block w-full text-[11px] ${dark ? 'text-gray-400' : 'text-gray-600'}`}
             />
           </label>
-          <label className="block space-y-1 text-xs text-gray-300" htmlFor="sidebar-rubric-paste">
+          <label
+            className={`block space-y-1 text-xs ${dark ? 'text-gray-300' : 'text-gray-700'}`}
+            htmlFor="sidebar-rubric-paste"
+          >
             Pegar rúbrica
             <textarea
               id="sidebar-rubric-paste"
@@ -126,7 +154,9 @@ export function Sidebar({
               value={pastedRubric}
               onChange={(e) => setPastedRubric(e.target.value)}
               placeholder="Pega los criterios aquí…"
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2 py-1.5 text-xs text-white placeholder-gray-500"
+              className={`w-full rounded-lg border px-2 py-1.5 text-xs text-white placeholder-gray-500 ${
+                dark ? 'border-gray-700 bg-gray-900' : 'border-gray-300 bg-white text-gray-900'
+              }`}
             />
           </label>
           <button
@@ -134,29 +164,44 @@ export function Sidebar({
             onClick={() => {
               if (pastedRubric.trim().length === 0) return;
               onRubricDraft(pastedRubric);
-              setRubricStatus(`Texto listo (${pastedRubric.length} caracteres). Revísalo en el paso 1.`);
+              setRubricStatus(`Texto listo (${pastedRubric.length} caracteres). Revísala en el paso 1.`);
             }}
-            className="w-full rounded-lg bg-gray-800 py-1.5 text-xs font-medium text-gray-200"
+            className={`w-full rounded-lg py-1.5 text-xs font-medium ${
+              dark ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
+            }`}
           >
             Usar texto pegado
           </button>
           {rubricStatus && (
-            <p role="status" className="text-[11px] text-gray-400">
+            <p role="status" className={`text-[11px] ${dark ? 'text-gray-400' : 'text-gray-600'}`}>
               {rubricStatus}
             </p>
           )}
         </section>
 
-        <section className="space-y-1 border-t border-gray-800 pt-3 text-xs">
-          <p className="font-semibold uppercase tracking-wider text-gray-400">Estado</p>
-          <p className="text-gray-300">
-            Rúbrica: {rubricName ? <span className="font-medium text-emerald-400">{rubricName}</span> : 'sin rúbrica'}
+        <section className={`space-y-1 border-t pt-3 text-xs ${dark ? 'border-gray-800' : 'border-gray-200'}`}>
+          <p className={`font-semibold uppercase tracking-wider ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+            Estado
           </p>
-          <p className="text-gray-300">
+          <p className={dark ? 'text-gray-300' : 'text-gray-700'}>
+            Rúbrica:{' '}
+            {rubricName ? (
+              <span className="font-medium text-emerald-400">{rubricName}</span>
+            ) : (
+              'sin rúbrica'
+            )}
+          </p>
+          <p className={dark ? 'text-gray-300' : 'text-gray-700'}>
             Referencias: {referenceCount} informe{referenceCount === 1 ? '' : 's'}
           </p>
-          <button type="button" onClick={onThemeToggle} className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs">
-            {settings.theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+          <button
+            type="button"
+            onClick={onThemeToggle}
+            className={`rounded-lg px-3 py-1.5 text-xs ${
+              dark ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'
+            }`}
+          >
+            {dark ? '☀ Tema claro' : '☾ Tema oscuro'}
           </button>
         </section>
       </div>
