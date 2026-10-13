@@ -80,12 +80,9 @@ function sampleView(): ReportView {
 }
 
 describe('ResultsPanel', () => {
-  it('muestra la valoracion, los criterios con evidencia y los apartados', () => {
+  it('muestra la valoracion y los apartados', () => {
     render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByText('Mejorable')).toBeInTheDocument();
-    expect(screen.getByText(/Rigor tecnico/)).toBeInTheDocument();
-    expect(screen.getByText(/8\/10/)).toBeInTheDocument();
-    expect(screen.getByText(/Cita de evidencia/)).toBeInTheDocument();
     expect(screen.getAllByText(/Objetivos/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Claridad/)).toBeInTheDocument();
     expect(screen.getAllByText(/Cuantificar/).length).toBeGreaterThan(0);
@@ -109,7 +106,8 @@ describe('ResultsPanel', () => {
     expect(container.textContent).not.toMatch(/puntuaci.n global/i);
   });
 
-  it('muestra la ficha con presentacion, estructura y proximos pasos', () => {    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+  it('muestra la ficha con presentacion, estructura y proximos pasos', () => {
+    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByText(/Ficha del informe/)).toBeInTheDocument();
     expect(screen.getByText(/comunidad energética/)).toBeInTheDocument();
     expect(screen.getAllByText(/Objetivos del estudio/).length).toBeGreaterThan(0);
@@ -117,29 +115,9 @@ describe('ResultsPanel', () => {
     expect(screen.getByText(/Cuantificar el CAPEX/)).toBeInTheDocument();
   });
 
-  it('no duplica la palabra Figura en las notas', () => {
+  it('no muestra notas de figuras en los apartados', () => {
     render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
-    expect(screen.getByText(/Figura 2: evolución horaria/)).toBeInTheDocument();
-    expect(screen.queryByText(/Figura Figura/)).not.toBeInTheDocument();
-  });
-
-  it('marca los criterios no evaluables y los que no tienen evidencias', () => {    const view = sampleView();
-    view.rubric.criteria.push(
-      { id: 'c2', name: 'Exposición', description: '', maxScore: 10, levels: [] },
-      { id: 'c3', name: 'Sin datos', description: '', maxScore: 10, levels: [] }
-    );
-    view.sections[0].criteria.push({
-      criterionId: 'c2',
-      score: 0,
-      maxScore: 10,
-      evidence: '',
-      feedback: '',
-      evaluable: false,
-      motivo: 'Requiere la defensa oral.',
-    });
-    render(<ResultsPanel view={view} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
-    expect(screen.getByText(/No evaluable en este documento/)).toBeInTheDocument();
-    expect(screen.getByText(/Sin evidencias en el documento evaluado/)).toBeInTheDocument();
+    expect(screen.queryByText(/Figura 2: evolución horaria/)).not.toBeInTheDocument();
   });
 
   it('colapsa los apartados no evaluados en un desplegable', () => {
@@ -153,45 +131,14 @@ describe('ResultsPanel', () => {
     expect(screen.getByText(/… y 1 apartado más sin evaluar\./)).toBeInTheDocument();
   });
 
-  it('colapsa los veredictos vacios con sus apartados', () => {
-    const view = sampleView();
-    view.sections[0].criteria.push(
-      {
-        criterionId: 'c1',
-        score: 0,
-        maxScore: 10,
-        evidence: '',
-        feedback: '',
-        evaluable: true,
-      },
-      {
-        criterionId: 'c1',
-        score: 0,
-        maxScore: 10,
-        evidence: '',
-        feedback: '',
-        evaluable: true,
-      }
-    );
-    render(<ResultsPanel view={view} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
-    expect(screen.getByText(/Sin contenido valorable en otro apartado \(Objetivos del estudio\)/)).toBeInTheDocument();
-  });
-
-  it('atribuye cada veredicto a su apartado', () => {
-    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
-    expect(screen.getByText(/\[Objetivos del estudio\]/)).toBeInTheDocument();
-  });
-
   it('muestra las comprobaciones mecanicas', () => {
     render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Comprobaciones' })).toBeInTheDocument();
     expect(screen.getByText(/Se mezclan coma y punto/)).toBeInTheDocument();
   });
 
-  it('muestra la categoria y el peso del criterio', () => {
-    const view = sampleView();
-    view.rubric.criteria[0] = { ...view.rubric.criteria[0], group: 'Cálculos', weight: 30 };
-    render(<ResultsPanel view={view} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
-    expect(screen.getByText(/Cálculos · 30%/)).toBeInTheDocument();
+  it('no muestra el bloque Criterios de evaluacion', () => {
+    render(<ResultsPanel view={sampleView()} onReset={vi.fn()} onDownloadWord={vi.fn()} />);
+    expect(screen.queryByText(/Criterios de evaluación/)).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReportBlocks } from './buildReport';
+import { buildReportBlocks, displayTitle, verdictsForCriterion, formatFigureNote, nonEvaluableLine } from './buildReport';
 import type { ReportView } from '../../types/evaluation';
 
 function sampleView(): ReportView {
@@ -72,16 +72,13 @@ function sampleView(): ReportView {
   };
 }
 
-import { displayTitle, verdictsForCriterion, formatFigureNote, nonEvaluableLine } from './buildReport';
-
 describe('buildReportBlocks', () => {
-  it('genera cabecera, criterios, apartados y sintesis sin nota global', () => {
+  it('genera cabecera, apartados y sintesis sin nota global', () => {
     const blocks = buildReportBlocks(sampleView());
     expect(blocks.length).toBeGreaterThan(0);
     expect(blocks[0].heading).toContain('informe.pdf');
     expect(blocks[0].paragraphs.join(' ')).toContain('Mejorable');
     const body = blocks.map((b) => `${b.heading} ${b.paragraphs.join(' ')}`).join('\n');
-    expect(body).toContain('Rigor tecnico');
     expect(body).toContain('Objetivos');
     expect(body).toContain('No evaluada');
     expect(body).not.toMatch(/nota global/i);
@@ -103,6 +100,48 @@ describe('buildReportBlocks', () => {
     expect(steps?.paragraphs).toEqual(['Cuantificar el CAPEX.', 'Corregir la Tabla 2.']);
   });
 
+  it('no incluye el bloque Criterios de evaluacion', () => {
+    const blocks = buildReportBlocks(sampleView());
+    const headings = blocks.map((b) => b.heading);
+    expect(headings).not.toContain('Criterios de evaluación');
+  });
+
+  it('no incluye notas de figuras en los apartados', () => {
+    const blocks = buildReportBlocks(sampleView());
+    const body = blocks.map((b) => `${b.heading} ${b.paragraphs.join(' ')}`).join('\n');
+    expect(body).not.toContain('Figura 2: evolución horaria');
+  });
+
+  it('colapsa los apartados no evaluados en un solo bloque', () => {
+    const view = sampleView();
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('Apartados no evaluados (1)');
+    expect(body).toContain('Anexo sin evaluar');
+  });
+
+  it('incluye las comprobaciones en el informe', () => {
+    const view = sampleView();
+    view.checks = [{ id: 'decimales', passed: false, message: 'Se mezclan coma y punto.' }];
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('Comprobaciones');
+    expect(body).toContain('Se mezclan coma y punto.');
+  });
+
+  it('la ficha lista los evaluados y colapsa el resto', () => {
+    const view = sampleView();
+    const body = buildReportBlocks(view)
+      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
+      .join('\n');
+    expect(body).toContain('Objetivos del estudio');
+    expect(body).toContain('… y 1 apartado más sin evaluar.');
+  });
+});
+
+describe('utilidades', () => {
   it('displayTitle prefiere el titulo del mapa', () => {
     const view = sampleView();
     expect(displayTitle(view, view.sections[0])).toBe('Objetivos del estudio');
@@ -136,114 +175,5 @@ describe('buildReportBlocks', () => {
   it('nonEvaluableLine usa singular y plural por apartados distintos', () => {
     expect(nonEvaluableLine(['Portada'])).toBe('No evaluable en otro apartado.');
     expect(nonEvaluableLine(['A', 'B', 'A'])).toBe('No evaluable en otros 2 apartados.');
-  });
-
-  it('colapsa los veredictos no evaluables en una sola linea por criterio', () => {
-    const view = sampleView();
-    view.sections[0].criteria.push(
-      {
-        criterionId: 'c1',
-        score: 0,
-        maxScore: 10,
-        evidence: '',
-        feedback: '',
-        evaluable: false,
-        motivo: 'Falta la defensa.',
-      },
-      {
-        criterionId: 'c1',
-        score: 0,
-        maxScore: 10,
-        evidence: '',
-        feedback: '',
-        evaluable: false,
-        motivo: 'Sin texto.',
-      }
-    );
-    const body = buildReportBlocks(view)
-      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
-      .join('\n');
-    expect(body).toContain('No evaluable en otro apartado.');
-    expect(body.match(/No evaluable en este documento/g)?.length ?? 0).toBeLessThanOrEqual(1);
-  });
-
-  it('colapsa los apartados no evaluados en un solo bloque', () => {
-    const view = sampleView();
-    const body = buildReportBlocks(view)
-      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
-      .join('\n');
-    expect(body).toContain('Apartados no evaluados (1)');
-    expect(body).toContain('Anexo sin evaluar');
-  });
-
-  it('incluye las comprobaciones en el informe', () => {
-    const view = sampleView();
-    view.checks = [{ id: 'decimales', passed: false, message: 'Se mezclan coma y punto.' }];
-    const body = buildReportBlocks(view)
-      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
-      .join('\n');
-    expect(body).toContain('Comprobaciones');
-    expect(body).toContain('Se mezclan coma y punto.');
-  });
-
-  it('muestra un criterio totalmente no evaluable en una sola linea', () => {    const view = sampleView();
-    view.rubric.criteria.push({ id: 'c2', name: 'Exposición', description: '', maxScore: 10, levels: [] });
-    view.sections[0].criteria.push({
-      criterionId: 'c2',
-      score: 0,
-      maxScore: 10,
-      evidence: '',
-      feedback: '',
-      evaluable: false,
-      motivo: 'Requiere la defensa oral.',
-    });
-    const body = buildReportBlocks(view)
-      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
-      .join('\n');
-    expect(body).toContain('No evaluable en este documento: Requiere la defensa oral.');
-  });
-
-  it('incluye la categoria y el peso en la linea del criterio', () => {
-    const view = sampleView();
-    view.rubric.criteria[0] = { ...view.rubric.criteria[0], group: 'Cálculos', weight: 30 };
-    const body = buildReportBlocks(view)
-      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
-      .join('\n');
-    expect(body).toContain('[Cálculos · 30%]');
-  });
-
-  it('colapsa los veredictos vacios con sus apartados', () => {
-    const view = sampleView();
-    view.sections[0].criteria.push(
-      {
-        criterionId: 'c1',
-        score: 0,
-        maxScore: 10,
-        evidence: '',
-        feedback: '',
-        evaluable: true,
-      },
-      {
-        criterionId: 'c1',
-        score: 0,
-        maxScore: 10,
-        evidence: '',
-        feedback: '',
-        evaluable: true,
-      }
-    );
-    const body = buildReportBlocks(view)
-      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
-      .join('\n');
-    expect(body).toContain('Sin contenido valorable en otro apartado (Objetivos del estudio).');
-  });
-
-  it('la ficha lista los evaluados y colapsa el resto', () => {
-    const view = sampleView();
-    const body = buildReportBlocks(view)
-      .map((b) => `${b.heading} ${b.paragraphs.join(' ')}`)
-      .join('\n');
-    expect(body).toContain('Objetivos del estudio');
-    expect(body).toContain('… y 1 apartado más sin evaluar.');
   });
 });

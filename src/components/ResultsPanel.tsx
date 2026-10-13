@@ -1,13 +1,5 @@
 import type { ReportView } from '../types/evaluation';
-import {
-  displayTitle,
-  verdictsForCriterion,
-  formatFigureNote,
-  nonEvaluableLine,
-  partitionVerdicts,
-  emptyVerdictsLine,
-} from '../lib/report/buildReport';
-import { formatGroupWeight } from '../lib/rubric/weights';
+import { displayTitle } from '../lib/report/buildReport';
 
 interface ResultsPanelProps {
   view: ReportView;
@@ -111,59 +103,6 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h4 className="mb-3 text-sm font-bold uppercase tracking-wider">Criterios de evaluación</h4>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {view.rubric.criteria.map((c) => {
-            const { substantive, empty, nonEvaluable } = partitionVerdicts(verdictsForCriterion(view, c));
-            return (
-              <div key={c.id} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-950">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">
-                    {c.name}
-                    {formatGroupWeight(c) && (
-                      <span className="font-normal text-gray-500"> ({formatGroupWeight(c)})</span>
-                    )}
-                  </span>
-                  {substantive.length > 0 && (
-                    <span className="text-xs font-extrabold text-blue-700">
-                      {substantive.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · ')}
-                    </span>
-                  )}
-                </div>
-                {substantive.length === 0 && nonEvaluable.length === 0 && empty.length === 0 && (
-                  <p className="mt-1 text-xs text-gray-500">Sin evidencias en el documento evaluado.</p>
-                )}
-                {substantive.length === 0 && nonEvaluable.length > 0 && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    No evaluable en este documento: {nonEvaluable[0].result.motivo || 'sin motivo indicado'}.
-                  </p>
-                )}
-                {substantive.length === 0 && nonEvaluable.length === 0 && empty.length > 0 && (
-                  <p className="mt-1 text-xs text-gray-500">Sin contenido valorable en este criterio.</p>
-                )}
-                {substantive.map((v, i) => (
-                  <p key={i} className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">[{v.sectionTitle}]</span> {v.result.feedback} Evidencia:{' '}
-                    {v.result.evidence}
-                  </p>
-                ))}
-                {substantive.length > 0 && nonEvaluable.length > 0 && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {nonEvaluableLine(nonEvaluable.map((v) => v.sectionTitle))}
-                  </p>
-                )}
-                {substantive.length > 0 && empty.length > 0 && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {emptyVerdictsLine(empty.map((v) => v.sectionTitle))}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       <section className="space-y-4">
         <h4 className="text-sm font-bold uppercase tracking-wider">Evaluación por apartados</h4>
         {view.sections.map((s) =>
@@ -185,13 +124,6 @@ export function ResultsPanel({ view, onReset, onDownloadWord }: ResultsPanelProp
                     <span className="font-bold text-amber-700">Mejoras: </span>
                     {s.improvements.join('; ')}
                   </div>
-                )}
-                {s.figureNotes.length > 0 && (
-                  <ul className="list-disc pl-5">
-                    {s.figureNotes.map((f, i) => (
-                      <li key={i}>{formatFigureNote(f.figureId, f.note)}</li>
-                    ))}
-                  </ul>
                 )}
               </div>
             </article>

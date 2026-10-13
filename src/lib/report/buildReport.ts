@@ -1,6 +1,6 @@
 import type { ReportView, SectionEvaluation, SectionCriterionResult } from '../../types/evaluation';
 import type { RubricCriterion } from '../../types/rubric';
-import { formatGroupWeight } from '../rubric/weights';
+
 
 export interface ReportBlock {
   heading: string;
@@ -121,38 +121,6 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
     ],
   });
 
-  blocks.push({
-    heading: 'Criterios de evaluación',
-    paragraphs: view.rubric.criteria.flatMap((c) => {
-      const weightSuffix = formatGroupWeight(c) ? ` [${formatGroupWeight(c)}]` : '';
-      const lines = [`${c.name} (máximo ${c.maxScore})${weightSuffix}: ${c.description}`];
-      const { substantive, empty, nonEvaluable } = partitionVerdicts(verdictsForCriterion(view, c));
-      if (substantive.length === 0 && nonEvaluable.length === 0 && empty.length === 0) {
-        lines.push('Sin evidencias en el documento evaluado.');
-        return lines;
-      }
-      if (substantive.length === 0 && nonEvaluable.length > 0) {
-        lines.push(`No evaluable en este documento: ${nonEvaluable[0].result.motivo || 'sin motivo indicado'}.`);
-        return lines;
-      }
-      if (substantive.length === 0) {
-        lines.push('Sin contenido valorable en este criterio.');
-        return lines;
-      }
-      lines.push(substantive.map((v) => `${v.result.score}/${v.result.maxScore}`).join(' · '));
-      for (const v of substantive) {
-        lines.push(`[${v.sectionTitle}]: ${v.result.feedback} Evidencia: ${v.result.evidence}`);
-      }
-      if (nonEvaluable.length > 0) {
-        lines.push(nonEvaluableLine(nonEvaluable.map((v) => v.sectionTitle)));
-      }
-      if (empty.length > 0) {
-        lines.push(emptyVerdictsLine(empty.map((v) => v.sectionTitle)));
-      }
-      return lines;
-    }),
-  });
-
   for (const section of view.sections) {
     if (!section.evaluated) {
       continue;
@@ -166,9 +134,6 @@ export function buildReportBlocks(view: ReportView): ReportBlock[] {
     }
     if (section.strengths.length > 0) paragraphs.push(`Fortalezas: ${section.strengths.join('; ')}`);
     if (section.improvements.length > 0) paragraphs.push(`Mejoras: ${section.improvements.join('; ')}`);
-    for (const fn of section.figureNotes) {
-      paragraphs.push(formatFigureNote(fn.figureId, fn.note));
-    }
     blocks.push({
       heading: `Apartado: ${displayTitle(view, section)}`,
       paragraphs,

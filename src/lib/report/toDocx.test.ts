@@ -64,6 +64,6 @@ describe('toDocx', () => {
     const zip = await JSZip.loadAsync(buffer);
     const xml = await zip.file('word/document.xml')?.async('text');
     expect(xml).toContain('informe.pdf');
-    expect(xml).toContain('Rigor tecnico');
+    expect(xml).toContain('Mejorable');
   });
 });
