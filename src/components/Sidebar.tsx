@@ -129,20 +129,28 @@ export function Sidebar({
           <p className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
             Rúbrica
           </p>
-          <label className={`block text-xs ${dark ? 'text-gray-300' : 'text-gray-700'}`}>
-            Adjuntar rúbrica
-            <input
-              ref={rubricFileRef}
-              type="file"
-              accept=".md,.txt,.docx,.pdf,.xlsx,.xls,.csv"
-              aria-label="Adjuntar rúbrica"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleRubricFile(file);
-              }}
-              className={`mt-1 block w-full text-[11px] ${dark ? 'text-gray-400' : 'text-gray-600'}`}
-            />
+          <label
+            htmlFor="sidebar-rubric-file"
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold ${
+              dark
+                ? 'border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700'
+                : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-100'
+            }`}
+          >
+            <span aria-hidden="true">📎</span> Adjuntar rúbrica
           </label>
+          <input
+            ref={rubricFileRef}
+            id="sidebar-rubric-file"
+            type="file"
+            accept=".md,.txt,.docx,.pdf,.xlsx,.xls,.csv"
+            aria-label="Adjuntar rúbrica"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleRubricFile(file);
+            }}
+            className="sr-only"
+          />
           <label
             className={`block space-y-1 text-xs ${dark ? 'text-gray-300' : 'text-gray-700'}`}
             htmlFor="sidebar-rubric-paste"

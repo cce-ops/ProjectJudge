@@ -41,16 +41,30 @@ export function DocumentsPanel({
         <p className="text-sm text-gray-500">Sube el informe del alumno (PDF, Word o Markdown).</p>
       </div>
 
-      <input
-        type="file"
-        accept=".pdf,.docx,.md,.txt"
-        disabled={disabled}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onSelectFile(file);
-        }}
-        className="text-sm"
-      />
+      <div>
+        <label
+          htmlFor="main-document-file"
+          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold ${
+            disabled
+              ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-500'
+              : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+          }`}
+        >
+          <span aria-hidden="true">📎</span> Adjuntar trabajo
+        </label>
+        <input
+          id="main-document-file"
+          type="file"
+          accept=".pdf,.docx,.md,.txt"
+          disabled={disabled}
+          aria-label="Adjuntar trabajo"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onSelectFile(file);
+          }}
+          className="sr-only"
+        />
+      </div>
 
       {referenceCount === 0 && (
         <p className="rounded-xl bg-gray-100 p-3 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
